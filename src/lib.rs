@@ -3,7 +3,7 @@ use std::fmt::Display;
 use ndarray::Array2;
 
 pub mod board;
-pub mod pieces;
+pub mod piece;
 
 // #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 // pub struct UVec2 {
