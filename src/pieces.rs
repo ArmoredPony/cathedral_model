@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use ndarray::{array, s};
+use ndarray::{array, Axis};
 
 use super::*;
 
@@ -164,16 +164,12 @@ impl Piece {
 
   pub fn rotate_clockwise(&mut self) {
     self.layout.swap_axes(0, 1);
-    for mut row in self.layout.rows_mut() {
-      row.assign(&row.slice(s![..; -1]).to_owned());
-    }
+    self.layout.invert_axis(Axis(1));
   }
 
   pub fn rotate_counterclockwise(&mut self) {
     self.layout.swap_axes(0, 1);
-    for mut col in self.layout.columns_mut() {
-      col.assign(&col.slice(s![..; -1]).to_owned());
-    }
+    self.layout.invert_axis(Axis(0));
   }
 }
 
