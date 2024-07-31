@@ -180,6 +180,7 @@ impl Piece {
     (0..self.layout.nrows())
       .flat_map(move |i| (0..self.layout.ncols()).map(move |j| (i, j)))
       .filter(|coords| self.layout[*coords])
+      .map(|(x, y)| (x + self.position.0, y + self.position.1))
   }
 }
 

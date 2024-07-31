@@ -52,8 +52,8 @@ impl Board {
   // TODO: pass position
   pub fn can_place_piece(&self, piece: &Piece) -> Result<(), BoardError> {
     for (x, y) in piece.occupied_coords_iter() {
-      let board_y = x + piece.position.0 + 1;
-      let board_x = y + piece.position.1 + 1;
+      let board_y = x + 1;
+      let board_x = y + 1;
       let tile = self
         .tiles
         .get((board_x, board_y))
@@ -75,8 +75,8 @@ impl Board {
     // TODO: replace `position` in `piece` after placing via copying it
     self.can_place_piece(piece)?;
     for (x, y) in piece.occupied_coords_iter() {
-      let board_y = x + piece.position.0 + 1;
-      let board_x = y + piece.position.1 + 1;
+      let board_y = x + 1;
+      let board_x = y + 1;
       self.tiles[(board_x, board_y)] = Tile::Occupied(piece.team);
     }
     // TODO: return new `piece`
