@@ -4,6 +4,7 @@ use ndarray::{array, Axis};
 
 use super::*;
 
+#[derive(Debug)]
 pub struct Piece {
   pub position: (usize, usize),
   pub team: Team,
