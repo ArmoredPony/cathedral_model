@@ -4,6 +4,7 @@ use ndarray::{array, Axis};
 
 use super::*;
 
+// TODO: make immutable, change position on placement, copy the entire thing
 #[derive(Debug)]
 pub struct Piece {
   pub position: (usize, usize),
