@@ -27,18 +27,21 @@ pub struct Board {
 
 impl Board {
   pub fn with_size(size: usize) -> Self {
-    let mut cells = Array::from_elem((size, size), Cell::Empty(Team::None));
+    let mut cells = Array::from_elem(
+      (size + 2, size + 2), //
+      Cell::Empty(Team::None),
+    );
     cells.row_mut(0).fill(Cell::Wall);
-    cells.row_mut(cells.nrows() - 1).fill(Cell::Wall);
+    cells.row_mut(size - 1).fill(Cell::Wall);
     cells.column_mut(0).fill(Cell::Wall);
-    cells.column_mut(cells.ncols() - 1).fill(Cell::Wall);
+    cells.column_mut(size - 1).fill(Cell::Wall);
     Board { cells }
   }
 }
 
 impl Default for Board {
   fn default() -> Self {
-    Self::with_size(12)
+    Self::with_size(10)
   }
 }
 
