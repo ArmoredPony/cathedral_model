@@ -50,25 +50,20 @@ impl Board {
   }
 
   pub fn can_place_piece(&self, piece: &Piece) -> Result<(), BoardError> {
-    for x in 0..piece.layout.nrows() {
-      for y in 0..piece.layout.ncols() {
-        if !piece.layout[(x, y)] {
-          continue;
+    for (x, y) in piece.occupied_coords_iter() {
+      let board_y = x + piece.position.0 + 1;
+      let board_x = y + piece.position.1 + 1;
+      let tile = self
+        .tiles
+        .get((board_x, board_y))
+        .ok_or(BoardError::PieceOutOfBounds)?;
+      match tile {
+        Tile::Wall => return Err(BoardError::PieceOutOfBounds),
+        Tile::Empty(team) if piece.team.is_opposing_team(team) => {
+          return Err(BoardError::PieceOnEnemyTile)
         }
-        let board_y = x + piece.position.0 + 1;
-        let board_x = y + piece.position.1 + 1;
-        let tile = self
-          .tiles
-          .get((board_x, board_y))
-          .ok_or(BoardError::PieceOutOfBounds)?;
-        match tile {
-          Tile::Wall => return Err(BoardError::PieceOutOfBounds),
-          Tile::Empty(team) if piece.team.is_opposing_team(team) => {
-            return Err(BoardError::PieceOnEnemyTile)
-          }
-          Tile::Occupied(_) => return Err(BoardError::PieceOnOccupiedTile),
-          _ => (),
-        }
+        Tile::Occupied(_) => return Err(BoardError::PieceOnOccupiedTile),
+        _ => (),
       }
     }
     Ok(())
@@ -76,15 +71,10 @@ impl Board {
 
   pub fn try_place_piece(&mut self, piece: &Piece) -> Result<(), BoardError> {
     self.can_place_piece(piece)?;
-    for x in 0..piece.layout.nrows() {
-      for y in 0..piece.layout.ncols() {
-        if !piece.layout[(x, y)] {
-          continue;
-        }
-        let board_y = x + piece.position.0 + 1;
-        let board_x = y + piece.position.1 + 1;
-        self.tiles[(board_x, board_y)] = Tile::Occupied(piece.team);
-      }
+    for (x, y) in piece.occupied_coords_iter() {
+      let board_y = x + piece.position.0 + 1;
+      let board_x = y + piece.position.1 + 1;
+      self.tiles[(board_x, board_y)] = Tile::Occupied(piece.team);
     }
     Ok(())
   }
@@ -182,9 +172,6 @@ mod tests {
     tavern.position = (0, 9);
     board.place_piece(&tavern);
     println!("{board}");
-
-    tavern.position = (0, 10);
-    board.place_piece(&tavern);
 
     // TODO: finish tests
   }

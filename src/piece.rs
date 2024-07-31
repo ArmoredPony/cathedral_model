@@ -172,6 +172,14 @@ impl Piece {
     self.layout.swap_axes(0, 1);
     self.layout.invert_axis(Axis(0));
   }
+
+  pub fn occupied_coords_iter(
+    &self,
+  ) -> impl Iterator<Item = (usize, usize)> + '_ {
+    (0..self.layout.nrows())
+      .flat_map(move |i| (0..self.layout.ncols()).map(move |j| (i, j)))
+      .filter(|coords| self.layout[*coords])
+  }
 }
 
 impl Display for Piece {
