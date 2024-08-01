@@ -76,7 +76,7 @@ impl Board {
     let tiles = self.get_interactive_tiles();
     for (x, y) in piece.occupied_coords_iter() {
       let tile = tiles
-        .get((position.0 + x, position.1 + y))
+        .get((position.1 + x, position.0 + y))
         .ok_or(BoardError::PieceOutOfBounds)?;
       match tile {
         Tile::Wall => return Err(BoardError::PieceOutOfBounds),
@@ -100,7 +100,7 @@ impl Board {
     self.can_place_piece(&piece, position)?;
     let mut tiles = self.get_interactive_tiles_mut();
     for (x, y) in piece.occupied_coords_iter() {
-      tiles[(position.0 + x, position.1 + y)] = Tile::Occupied(piece.team);
+      tiles[(position.1 + x, position.0 + y)] = Tile::Occupied(piece.team);
     }
     Ok(piece.placed_at(position))
   }
@@ -182,15 +182,15 @@ mod tests {
     let cathedral = Piece::new_cathedral();
     assert!(board.can_place_piece(&cathedral, (0, 0)).is_ok());
 
-    assert!(board.can_place_piece(&cathedral, (6, 7)).is_ok());
+    assert!(board.can_place_piece(&cathedral, (7, 6)).is_ok());
 
     assert_eq!(
-      board.can_place_piece(&cathedral, (7, 6)),
+      board.can_place_piece(&cathedral, (7, 7)),
       Err(BoardError::PieceOutOfBounds)
     );
 
     assert_eq!(
-      board.can_place_piece(&cathedral, (6, 8)),
+      board.can_place_piece(&cathedral, (8, 6)),
       Err(BoardError::PieceOutOfBounds)
     );
   }
@@ -226,5 +226,96 @@ mod tests {
         .expect_err("must be error"),
       BoardError::PieceOnOccupiedTile
     );
+  }
+
+  /// Test if it is possible to fill the enitre board using all white pieces,
+  /// black pieces and the cathedral. There should be no empty tiles left.
+  #[test]
+  fn test_fill_board_with_pieces() -> Result<(), BoardError> {
+    let w_tavern1 = Piece::new_tavern(Team::White);
+    let w_tavern2 = Piece::new_tavern(Team::White);
+    let w_stable1 = Piece::new_stable(Team::White);
+    let mut w_stable2 = Piece::new_stable(Team::White);
+    let w_inn1 = Piece::new_inn(Team::White);
+    let mut w_inn2 = Piece::new_inn(Team::White);
+    let w_bridge = Piece::new_bridge(Team::White);
+    let w_square = Piece::new_square(Team::White);
+    let mut w_manor = Piece::new_manor(Team::White);
+    let w_abbey = Piece::new_abbey(Team::White);
+    let mut w_academy = Piece::new_academy(Team::White);
+    let w_infirmary = Piece::new_infirmary(Team::White);
+    let mut w_castle = Piece::new_castle(Team::White);
+    let mut w_tower = Piece::new_tower(Team::White);
+
+    let b_tavern1 = Piece::new_tavern(Team::Black);
+    let b_tavern2 = Piece::new_tavern(Team::Black);
+    let mut b_stable1 = Piece::new_stable(Team::Black);
+    let mut b_stable2 = Piece::new_stable(Team::Black);
+    let mut b_inn1 = Piece::new_inn(Team::Black);
+    let mut b_inn2 = Piece::new_inn(Team::Black);
+    let b_bridge = Piece::new_bridge(Team::Black);
+    let b_square = Piece::new_square(Team::Black);
+    let mut b_manor = Piece::new_manor(Team::Black);
+    let mut b_abbey = Piece::new_abbey(Team::Black);
+    let mut b_academy = Piece::new_academy(Team::Black);
+    let b_infirmary = Piece::new_infirmary(Team::Black);
+    let mut b_castle = Piece::new_castle(Team::Black);
+    let mut b_tower = Piece::new_tower(Team::Black);
+
+    let cathedral = Piece::new_cathedral();
+
+    let mut board = Board::default();
+    board.try_place_piece(w_tavern1, (0, 0))?;
+    board.try_place_piece(w_abbey, (0, 0))?;
+    board.try_place_piece(w_stable1, (3, 0))?;
+    w_stable2.rotate_clockwise();
+    board.try_place_piece(w_stable2, (4, 0))?;
+    w_academy.rotate_clockwise();
+    board.try_place_piece(w_academy, (5, 0))?;
+    board.try_place_piece(w_square, (7, 0))?;
+    board.try_place_piece(w_tavern2, (0, 2))?;
+    w_manor.rotate_clockwise();
+    w_manor.rotate_clockwise();
+    board.try_place_piece(w_manor, (1, 1))?;
+    w_tower.rotate_counterclockwise();
+    board.try_place_piece(w_tower, (4, 1))?;
+    board.try_place_piece(w_inn1, (0, 3))?;
+    board.try_place_piece(w_infirmary, (1, 3))?;
+    w_castle.rotate_clockwise();
+    board.try_place_piece(w_castle, (3, 3))?;
+    board.try_place_piece(w_bridge, (0, 5))?;
+    w_inn2.rotate_counterclockwise();
+    board.try_place_piece(w_inn2, (1, 5))?;
+
+    board.try_place_piece(b_bridge, (9, 0))?;
+    board.try_place_piece(b_tavern1, (8, 2))?;
+    b_manor.rotate_clockwise();
+    b_manor.rotate_clockwise();
+    board.try_place_piece(b_manor, (6, 3))?;
+    b_castle.rotate_clockwise();
+    board.try_place_piece(b_castle, (8, 3))?;
+    b_inn1.rotate_counterclockwise();
+    board.try_place_piece(b_inn1, (5, 4))?;
+    board.try_place_piece(b_infirmary, (2, 6))?;
+    b_tower.rotate_clockwise();
+    board.try_place_piece(b_tower, (4, 6))?;
+    b_abbey.rotate_clockwise();
+    board.try_place_piece(b_abbey, (8, 6))?;
+    b_academy.rotate_clockwise();
+    b_academy.rotate_clockwise();
+    board.try_place_piece(b_academy, (0, 7))?;
+    board.try_place_piece(b_square, (4, 8))?;
+    b_stable1.rotate_clockwise();
+    board.try_place_piece(b_stable1, (0, 9))?;
+    board.try_place_piece(b_tavern2, (3, 9))?;
+    b_stable2.rotate_clockwise();
+    board.try_place_piece(b_stable2, (6, 9))?;
+    b_inn2.rotate_clockwise();
+    b_inn2.rotate_clockwise();
+    board.try_place_piece(b_inn2, (8, 8))?;
+
+    board.try_place_piece(cathedral, (6, 5))?;
+
+    Ok(())
   }
 }
