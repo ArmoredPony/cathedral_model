@@ -1,9 +1,12 @@
 use std::fmt::Display;
 
-use ndarray::{Array, Array2};
+use ndarray::{s, Array, Array2, ArrayView2, ArrayViewMut2};
 use thiserror::Error;
 
-use crate::{piece::Piece, Team};
+use crate::{
+  piece::{Piece, Placed, Released},
+  Team,
+};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Tile {
@@ -63,23 +66,48 @@ impl Board {
     self.tiles.slice_mut(s![1..-1, 1..-1])
   }
 
-  // TODO: pass position
-  pub fn try_place_piece(&mut self, piece: &Piece) -> Result<(), BoardError> {
-    // TODO: replace `position` in `piece` after placing via copying it
-    self.can_place_piece(piece)?;
+  pub fn can_place_piece(
+    &self,
+    piece: &Piece<Released>,
+    position: (usize, usize),
+  ) -> Result<(), BoardError> {
+    let tiles = self.get_interactive_tiles();
     for (x, y) in piece.occupied_coords_iter() {
-      let board_y = x + 1;
-      let board_x = y + 1;
-      self.tiles[(board_x, board_y)] = Tile::Occupied(piece.team);
+      let tile = tiles
+        .get((position.0 + x, position.1 + y))
+        .ok_or(BoardError::PieceOutOfBounds)?;
+      match tile {
+        Tile::Wall => return Err(BoardError::PieceOutOfBounds),
+        Tile::Empty(team) if piece.team.is_opposing_team(team) => {
+          return Err(BoardError::PieceOnEnemyTile)
+        }
+        Tile::Occupied(_) => return Err(BoardError::PieceOnOccupiedTile),
+        _ => (),
+      }
     }
-    // TODO: return new `piece`
     Ok(())
   }
 
-  // TODO: pass position
-  pub fn place_piece(&mut self, piece: &Piece) {
+  pub fn try_place_piece(
+    &mut self,
+    piece: Piece<Released>,
+    position: (usize, usize),
+  ) -> Result<Piece<Placed>, BoardError> {
+    self.can_place_piece(&piece, position)?;
+    let mut tiles = self.get_interactive_tiles_mut();
+    for (x, y) in piece.occupied_coords_iter() {
+      tiles[(position.0 + x, position.1 + y)] = Tile::Occupied(piece.team);
+    }
+    Ok(piece.placed_at(position))
+  }
+
+  pub fn place_piece(
+    &mut self,
+    piece: Piece<Released>,
+    position: (usize, usize),
+  ) -> Piece<Placed> {
     self
-      .try_place_piece(piece)
+      .try_place_piece(piece, position)
       .unwrap_or_else(|e| panic!("could not put piece on the board: {e}"))
   }
 }
@@ -130,39 +158,33 @@ mod tests {
   #[test]
   fn test_can_place_piece() {
     let board = Board::default();
-    let mut tavern = Piece::new_tavern((0, 0), Team::White);
-    assert!(board.can_place_piece(&tavern).is_ok());
+    let tavern = Piece::new_tavern(Team::White);
+    assert!(board.can_place_piece(&tavern, (0, 0)).is_ok());
 
-    tavern.position = (9, 9);
-    assert!(board.can_place_piece(&tavern).is_ok());
+    assert!(board.can_place_piece(&tavern, (9, 9)).is_ok());
 
-    tavern.position = (10, 0);
     assert_eq!(
-      board.can_place_piece(&tavern),
+      board.can_place_piece(&tavern, (10, 0)),
       Err(BoardError::PieceOutOfBounds)
     );
 
-    tavern.position = (0, 10);
     assert_eq!(
-      board.can_place_piece(&tavern),
+      board.can_place_piece(&tavern, (0, 10)),
       Err(BoardError::PieceOutOfBounds)
     );
 
-    let mut cathedral = Piece::new_cathedral((0, 0));
-    assert!(board.can_place_piece(&cathedral).is_ok());
+    let cathedral = Piece::new_cathedral();
+    assert!(board.can_place_piece(&cathedral, (0, 0)).is_ok());
 
-    cathedral.position = (6, 7);
-    assert!(board.can_place_piece(&cathedral).is_ok());
+    assert!(board.can_place_piece(&cathedral, (6, 7)).is_ok());
 
-    cathedral.position = (7, 6);
     assert_eq!(
-      board.can_place_piece(&cathedral),
+      board.can_place_piece(&cathedral, (7, 6)),
       Err(BoardError::PieceOutOfBounds)
     );
 
-    cathedral.position = (6, 8);
     assert_eq!(
-      board.can_place_piece(&cathedral),
+      board.can_place_piece(&cathedral, (6, 8)),
       Err(BoardError::PieceOutOfBounds)
     );
   }
@@ -172,13 +194,9 @@ mod tests {
     let mut board = Board::default();
     println!("{board}");
 
-    let mut tavern = Piece::new_tavern((9, 0), Team::White);
-    board.place_piece(&tavern);
-    println!("{board}");
-
-    tavern.position = (0, 9);
-    board.place_piece(&tavern);
-    println!("{board}");
+    let tavern = Piece::new_tavern(Team::White);
+    let tavern = board.place_piece(tavern, (9, 0));
+    assert_eq!(tavern.position(), (9, 0));
 
     // TODO: finish tests
   }
