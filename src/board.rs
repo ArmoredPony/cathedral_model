@@ -20,7 +20,7 @@ impl Display for Tile {
     match self {
       Tile::Empty(team) if *team == Team::None => write!(f, "  "),
       Tile::Empty(team) | Tile::Occupied(team) => write!(f, "{team}"),
-      Tile::Wall => write!(f, "╱╱"),
+      Tile::Wall => write!(f, "╲╲"),
     }
   }
 }
@@ -126,7 +126,7 @@ impl Default for Board {
 
 impl Display for Board {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(f, "\n     ")?;
+    write!(f, "\n   ")?;
     for i in 0..self.tiles.ncols() - 2 {
       write!(f, "{i:>2}")?;
     }
@@ -136,13 +136,17 @@ impl Display for Board {
       .rows()
       .into_iter()
       .enumerate()
+      .skip(1)
       .try_for_each(|(i, row)| {
         if (1..self.tiles.nrows() - 1).contains(&i) {
           write!(f, "{:>2} ", i - 1)?;
         } else {
           write!(f, "   ")?;
         }
-        row.iter().try_for_each(|cell| write!(f, "{cell}"))?;
+        row
+          .iter()
+          .skip(1)
+          .try_for_each(|cell| write!(f, "{cell}"))?;
         writeln!(f)
       })
   }
