@@ -6,6 +6,7 @@ use super::*;
 
 pub trait PieceState {}
 
+#[derive(Debug)]
 pub enum Placed {}
 impl PieceState for Placed {}
 
@@ -21,6 +22,10 @@ pub struct Piece<S: PieceState> {
 }
 
 impl Piece<Released> {
+  /// Returns a piece with this layout:
+  /// <pre>
+  /// []
+  /// </pre>
   pub fn new_tavern(team: Team) -> Self {
     Piece {
       team,
@@ -30,6 +35,11 @@ impl Piece<Released> {
     }
   }
 
+  /// Returns a piece with this layout:
+  /// <pre>
+  /// []
+  /// []
+  /// </pre>
   pub fn new_stable(team: Team) -> Self {
     Piece {
       team,
@@ -42,6 +52,11 @@ impl Piece<Released> {
     }
   }
 
+  /// Returns a piece with this layout:
+  /// <pre>
+  /// [][]
+  /// []
+  /// </pre>
   pub fn new_inn(team: Team) -> Self {
     Piece {
       team,
@@ -54,6 +69,12 @@ impl Piece<Released> {
     }
   }
 
+  /// Returns a piece with this layout:
+  /// <pre>
+  /// []
+  /// []
+  /// []
+  /// </pre>
   pub fn new_bridge(team: Team) -> Self {
     Piece {
       team,
@@ -67,6 +88,11 @@ impl Piece<Released> {
     }
   }
 
+  /// Returns a piece with this layout:
+  /// <pre>
+  /// [][]
+  /// [][]
+  /// </pre>
   pub fn new_square(team: Team) -> Self {
     Piece {
       team,
@@ -79,6 +105,11 @@ impl Piece<Released> {
     }
   }
 
+  /// Returns a piece with this layout:
+  /// <pre>
+  /// [][][]
+  ///   []
+  /// </pre>
   pub fn new_manor(team: Team) -> Self {
     Piece {
       team,
@@ -91,6 +122,12 @@ impl Piece<Released> {
     }
   }
 
+  /// Returns a piece with this layout:
+  /// <pre>
+  /// white:  black:
+  ///   [][]  [][]
+  /// [][]      [][]
+  /// </pre>
   pub fn new_abbey(team: Team) -> Self {
     Piece {
       team,
@@ -110,6 +147,13 @@ impl Piece<Released> {
     }
   }
 
+  /// Returns a piece with this layout:
+  /// <pre>
+  /// white:  black:
+  ///     []  []
+  /// [][][]  [][][]
+  ///   []      []
+  /// </pre>
   pub fn new_academy(team: Team) -> Self {
     Piece {
       team,
@@ -131,6 +175,12 @@ impl Piece<Released> {
     }
   }
 
+  /// Returns a piece with this layout:
+  /// <pre>
+  ///   []
+  /// [][][]
+  ///   []
+  /// </pre>
   pub fn new_infirmary(team: Team) -> Self {
     Piece {
       team,
@@ -144,6 +194,11 @@ impl Piece<Released> {
     }
   }
 
+  /// Returns a piece with this layout:
+  /// <pre>
+  /// [][][]
+  /// []  []
+  /// </pre>
   pub fn new_castle(team: Team) -> Self {
     Piece {
       team,
@@ -156,6 +211,12 @@ impl Piece<Released> {
     }
   }
 
+  /// Returns a piece with this layout:
+  /// <pre>
+  ///   [][]
+  /// [][]
+  /// []
+  /// </pre>
   pub fn new_tower(team: Team) -> Self {
     Piece {
       team,
@@ -169,6 +230,13 @@ impl Piece<Released> {
     }
   }
 
+  /// Returns a piece with this layout:
+  /// <pre>
+  ///   []
+  /// [][][]
+  ///   []
+  ///   []
+  /// </pre>
   pub fn new_cathedral() -> Self {
     let team = Team::None;
     Piece {
