@@ -196,14 +196,35 @@ mod tests {
   }
 
   #[test]
-  fn try_place_piece() {
+  fn test_try_place_piece() {
     let mut board = Board::default();
-    println!("{board}");
 
-    let tavern = Piece::new_tavern(Team::White);
-    let tavern = board.place_piece(tavern, (9, 0));
-    assert_eq!(tavern.position(), (9, 0));
+    let inn = Piece::new_inn(Team::White);
+    assert_eq!(
+      board
+        .try_place_piece(inn, (0, 9))
+        .expect_err("must be error"),
+      BoardError::PieceOutOfBounds
+    );
 
-    // TODO: finish tests
+    let white_tavern = Piece::new_tavern(Team::White);
+    let white_tavern = board.try_place_piece(white_tavern, (1, 2)).unwrap();
+    assert_eq!(white_tavern.position(), (1, 2));
+
+    let black_tavern = Piece::new_tavern(Team::Black);
+    assert_eq!(
+      board
+        .try_place_piece(black_tavern, (1, 2))
+        .expect_err("must be error"),
+      BoardError::PieceOnOccupiedTile
+    );
+
+    let black_infirmary = Piece::new_infirmary(Team::Black);
+    assert_eq!(
+      board
+        .try_place_piece(black_infirmary, (1, 1))
+        .expect_err("must be error"),
+      BoardError::PieceOnOccupiedTile
+    );
   }
 }
