@@ -66,6 +66,8 @@ impl Board {
     self.tiles.slice_mut(s![1..-1, 1..-1])
   }
 
+  /// Checks if piece can be placed on board at given position. Returns possible
+  /// error that can occur during placement.
   pub fn can_place_piece(
     &self,
     piece: &Piece<Released>,
@@ -88,6 +90,8 @@ impl Board {
     Ok(())
   }
 
+  /// Tries to put piece on board at given position. Returns same piece in
+  /// `Placed` state or an error that occured.
   pub fn try_place_piece(
     &mut self,
     piece: Piece<Released>,
@@ -101,6 +105,8 @@ impl Board {
     Ok(piece.placed_at(position))
   }
 
+  /// Tries to put piece on board at given position. Panics if it can't.
+  /// Returns sane piece in `Placed` state.
   pub fn place_piece(
     &mut self,
     piece: Piece<Released>,

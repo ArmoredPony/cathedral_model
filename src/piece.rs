@@ -12,7 +12,6 @@ impl PieceState for Placed {}
 pub enum Released {}
 impl PieceState for Released {}
 
-// TODO: make immutable, change position on placement, copy the entire thing
 #[derive(Debug)]
 pub struct Piece<S: PieceState> {
   position: (usize, usize),
@@ -206,6 +205,8 @@ impl Piece<Released> {
       .filter(|coords| self.layout[*coords])
   }
 
+  /// Emulates placing a piece on some position. Changes its internal
+  /// position to match provided one, also changes its state to Placed.
   pub fn placed_at(self, position: (usize, usize)) -> Piece<Placed> {
     Piece {
       position,
