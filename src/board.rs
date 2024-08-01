@@ -49,25 +49,18 @@ impl Board {
     Board { tiles }
   }
 
-  // TODO: pass position
-  pub fn can_place_piece(&self, piece: &Piece) -> Result<(), BoardError> {
-    for (x, y) in piece.occupied_coords_iter() {
-      let board_y = x + 1;
-      let board_x = y + 1;
-      let tile = self
-        .tiles
-        .get((board_x, board_y))
-        .ok_or(BoardError::PieceOutOfBounds)?;
-      match tile {
-        Tile::Wall => return Err(BoardError::PieceOutOfBounds),
-        Tile::Empty(team) if piece.team.is_opposing_team(team) => {
-          return Err(BoardError::PieceOnEnemyTile)
-        }
-        Tile::Occupied(_) => return Err(BoardError::PieceOnOccupiedTile),
-        _ => (),
-      }
-    }
-    Ok(())
+  /// Returns interactive tiles of the board.
+  /// I.e. returns those tiles that a play can put a piece on.
+  #[allow(clippy::reversed_empty_ranges)]
+  pub fn get_interactive_tiles(&self) -> ArrayView2<'_, Tile> {
+    self.tiles.slice(s![1..-1, 1..-1])
+  }
+
+  /// Returns interactive tiles of the board.
+  /// I.e. returns those tiles that a play can put a piece on.
+  #[allow(clippy::reversed_empty_ranges)]
+  pub fn get_interactive_tiles_mut(&mut self) -> ArrayViewMut2<'_, Tile> {
+    self.tiles.slice_mut(s![1..-1, 1..-1])
   }
 
   // TODO: pass position
@@ -124,6 +117,15 @@ impl Display for Board {
 #[cfg(test)]
 mod tests {
   use super::*;
+
+  #[test]
+  fn test_interactive_tiles_empty_on_empty_board() {
+    let board = Board::default();
+    let interactive_tiles = board.get_interactive_tiles();
+    assert!(interactive_tiles
+      .iter()
+      .all(|tile| *tile == Tile::Empty(Team::None)));
+  }
 
   #[test]
   fn test_can_place_piece() {
