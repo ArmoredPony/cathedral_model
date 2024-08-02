@@ -11,7 +11,7 @@ pub mod piece;
 //   y: usize,
 // }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Team {
   White,
   Black,
@@ -28,7 +28,7 @@ impl Team {
 }
 
 impl Display for Team {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+  fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
     write!(f, "{}", match self {
       Team::White => "░░",
       Team::Black => "██",

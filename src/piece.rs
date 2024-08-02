@@ -6,19 +6,30 @@ use super::*;
 
 pub trait PieceState {}
 
-#[derive(Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Placed {}
 impl PieceState for Placed {}
 
 pub enum Released {}
 impl PieceState for Released {}
 
-#[derive(Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Piece<S: PieceState> {
   position: (usize, usize),
   pub team: Team,
   pub layout: Array2<bool>,
   _state: PhantomData<S>,
+}
+
+impl<S: PieceState> Piece<S> {
+  /// Returns iterator of tiles' local coordinates that this piece occupies.
+  pub fn occupied_coords_iter(
+    &self,
+  ) -> impl Iterator<Item = (usize, usize)> + '_ {
+    (0..self.layout.nrows())
+      .flat_map(move |i| (0..self.layout.ncols()).map(move |j| (i, j)))
+      .filter(|coords| self.layout[*coords])
+  }
 }
 
 impl Piece<Released> {
@@ -264,15 +275,6 @@ impl Piece<Released> {
     self.layout.invert_axis(Axis(0));
   }
 
-  /// Returns iterator of tiles' local coordinates that this piece occupies.
-  pub fn occupied_coords_iter(
-    &self,
-  ) -> impl Iterator<Item = (usize, usize)> + '_ {
-    (0..self.layout.nrows())
-      .flat_map(move |i| (0..self.layout.ncols()).map(move |j| (i, j)))
-      .filter(|coords| self.layout[*coords])
-  }
-
   /// Emulates placing a piece on some position. Changes its internal
   /// position to match provided one, also changes its state to Placed.
   pub fn placed_at(self, position: (usize, usize)) -> Piece<Placed> {
@@ -289,10 +291,19 @@ impl Piece<Placed> {
   pub fn position(&self) -> (usize, usize) {
     self.position
   }
+
+  pub fn released(self) -> Piece<Released> {
+    Piece {
+      position: self.position,
+      team: self.team,
+      layout: self.layout,
+      _state: PhantomData,
+    }
+  }
 }
 
 impl<S: PieceState> Display for Piece<S> {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+  fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
     write!(f, "{}", self.layout)
   }
 }
@@ -325,113 +336,77 @@ mod tests {
 
     let mut inn = Piece::new_inn(Team::White);
     inn.rotate_clockwise();
-    assert_eq!(
-      inn.layout,
-      array![
-        [true, true], //
-        [false, true]
-      ]
-    );
+    assert_eq!(inn.layout, array![
+      [true, true], //
+      [false, true]
+    ]);
     inn.rotate_clockwise();
-    assert_eq!(
-      inn.layout,
-      array![
-        [false, true], //
-        [true, true]
-      ]
-    );
+    assert_eq!(inn.layout, array![
+      [false, true], //
+      [true, true]
+    ]);
     inn.rotate_clockwise();
-    assert_eq!(
-      inn.layout,
-      array![
-        [true, false], //
-        [true, true]
-      ]
-    );
+    assert_eq!(inn.layout, array![
+      [true, false], //
+      [true, true]
+    ]);
     inn.rotate_clockwise();
-    assert_eq!(
-      inn.layout,
-      array![
-        [true, true], //
-        [true, false]
-      ]
-    );
+    assert_eq!(inn.layout, array![
+      [true, true], //
+      [true, false]
+    ]);
 
     let mut manor = Piece::new_manor(Team::White);
     manor.rotate_clockwise();
-    assert_eq!(
-      manor.layout,
-      array![
-        [false, true], //
-        [true, true],
-        [false, true]
-      ]
-    );
+    assert_eq!(manor.layout, array![
+      [false, true], //
+      [true, true],
+      [false, true]
+    ]);
     manor.rotate_clockwise();
-    assert_eq!(
-      manor.layout,
-      array![
-        [false, true, false], //
-        [true, true, true]
-      ]
-    );
+    assert_eq!(manor.layout, array![
+      [false, true, false], //
+      [true, true, true]
+    ]);
     manor.rotate_clockwise();
-    assert_eq!(
-      manor.layout,
-      array![
-        [true, false], //
-        [true, true],
-        [true, false]
-      ]
-    );
+    assert_eq!(manor.layout, array![
+      [true, false], //
+      [true, true],
+      [true, false]
+    ]);
     manor.rotate_clockwise();
-    assert_eq!(
-      manor.layout,
-      array![
-        [true, true, true], //
-        [false, true, false]
-      ]
-    );
+    assert_eq!(manor.layout, array![
+      [true, true, true], //
+      [false, true, false]
+    ]);
 
     let mut cathedral = Piece::new_cathedral();
     cathedral.rotate_clockwise();
-    assert_eq!(
-      cathedral.layout,
-      array![
-        [false, false, true, false], //
-        [true, true, true, true],
-        [false, false, true, false]
-      ]
-    );
+    assert_eq!(cathedral.layout, array![
+      [false, false, true, false], //
+      [true, true, true, true],
+      [false, false, true, false]
+    ]);
     cathedral.rotate_clockwise();
-    assert_eq!(
-      cathedral.layout,
-      array![
-        [false, true, false], //
-        [false, true, false],
-        [true, true, true],
-        [false, true, false],
-      ]
-    );
+    assert_eq!(cathedral.layout, array![
+      [false, true, false], //
+      [false, true, false],
+      [true, true, true],
+      [false, true, false],
+    ]);
     cathedral.rotate_clockwise();
-    assert_eq!(
-      cathedral.layout,
-      array![
-        [false, true, false, false], //
-        [true, true, true, true],
-        [false, true, false, false]
-      ]
-    );
+    assert_eq!(cathedral.layout, array![
+      [false, true, false, false], //
+      [true, true, true, true],
+      [false, true, false, false]
+    ]);
     cathedral.rotate_clockwise();
-    assert_eq!(
-      cathedral.layout,
-      array![
-        [false, true, false], //
-        [true, true, true],
-        [false, true, false],
-        [false, true, false],
-      ]
-    );
+    assert_eq!(cathedral.layout, array![
+      [false, true, false], //
+      [true, true, true],
+      [false, true, false],
+      [false, true, false],
+    ]);
   }
 
   #[test]
@@ -458,112 +433,76 @@ mod tests {
 
     let mut inn = Piece::new_inn(Team::White);
     inn.rotate_counterclockwise();
-    assert_eq!(
-      inn.layout,
-      array![
-        [true, false], //
-        [true, true]
-      ]
-    );
+    assert_eq!(inn.layout, array![
+      [true, false], //
+      [true, true]
+    ]);
     inn.rotate_counterclockwise();
-    assert_eq!(
-      inn.layout,
-      array![
-        [false, true], //
-        [true, true]
-      ]
-    );
+    assert_eq!(inn.layout, array![
+      [false, true], //
+      [true, true]
+    ]);
     inn.rotate_counterclockwise();
-    assert_eq!(
-      inn.layout,
-      array![
-        [true, true], //
-        [false, true]
-      ]
-    );
+    assert_eq!(inn.layout, array![
+      [true, true], //
+      [false, true]
+    ]);
     inn.rotate_counterclockwise();
-    assert_eq!(
-      inn.layout,
-      array![
-        [true, true], //
-        [true, false]
-      ]
-    );
+    assert_eq!(inn.layout, array![
+      [true, true], //
+      [true, false]
+    ]);
 
     let mut manor = Piece::new_manor(Team::White);
     manor.rotate_counterclockwise();
-    assert_eq!(
-      manor.layout,
-      array![
-        [true, false], //
-        [true, true],
-        [true, false]
-      ]
-    );
+    assert_eq!(manor.layout, array![
+      [true, false], //
+      [true, true],
+      [true, false]
+    ]);
     manor.rotate_counterclockwise();
-    assert_eq!(
-      manor.layout,
-      array![
-        [false, true, false], //
-        [true, true, true]
-      ]
-    );
+    assert_eq!(manor.layout, array![
+      [false, true, false], //
+      [true, true, true]
+    ]);
     manor.rotate_counterclockwise();
-    assert_eq!(
-      manor.layout,
-      array![
-        [false, true], //
-        [true, true],
-        [false, true]
-      ]
-    );
+    assert_eq!(manor.layout, array![
+      [false, true], //
+      [true, true],
+      [false, true]
+    ]);
     manor.rotate_counterclockwise();
-    assert_eq!(
-      manor.layout,
-      array![
-        [true, true, true], //
-        [false, true, false]
-      ]
-    );
+    assert_eq!(manor.layout, array![
+      [true, true, true], //
+      [false, true, false]
+    ]);
 
     let mut cathedral = Piece::new_cathedral();
     cathedral.rotate_counterclockwise();
-    assert_eq!(
-      cathedral.layout,
-      array![
-        [false, true, false, false], //
-        [true, true, true, true],
-        [false, true, false, false]
-      ]
-    );
+    assert_eq!(cathedral.layout, array![
+      [false, true, false, false], //
+      [true, true, true, true],
+      [false, true, false, false]
+    ]);
     cathedral.rotate_counterclockwise();
-    assert_eq!(
-      cathedral.layout,
-      array![
-        [false, true, false], //
-        [false, true, false],
-        [true, true, true],
-        [false, true, false],
-      ]
-    );
+    assert_eq!(cathedral.layout, array![
+      [false, true, false], //
+      [false, true, false],
+      [true, true, true],
+      [false, true, false],
+    ]);
     cathedral.rotate_counterclockwise();
-    assert_eq!(
-      cathedral.layout,
-      array![
-        [false, false, true, false], //
-        [true, true, true, true],
-        [false, false, true, false]
-      ]
-    );
+    assert_eq!(cathedral.layout, array![
+      [false, false, true, false], //
+      [true, true, true, true],
+      [false, false, true, false]
+    ]);
     cathedral.rotate_counterclockwise();
-    assert_eq!(
-      cathedral.layout,
-      array![
-        [false, true, false], //
-        [true, true, true],
-        [false, true, false],
-        [false, true, false],
-      ]
-    );
+    assert_eq!(cathedral.layout, array![
+      [false, true, false], //
+      [true, true, true],
+      [false, true, false],
+      [false, true, false],
+    ]);
   }
 }

@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{collections::HashMap, fmt::Display};
 
 use ndarray::{s, Array, Array2, ArrayView2, ArrayViewMut2};
 use thiserror::Error;
@@ -16,7 +16,7 @@ pub enum Tile {
 }
 
 impl Display for Tile {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+  fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
     match self {
       Tile::Empty(team) if *team == Team::None => write!(f, "  "),
       Tile::Empty(team) | Tile::Occupied(team) => write!(f, "{team}"),
@@ -33,10 +33,13 @@ pub enum BoardError {
   PieceOnOccupiedTile,
   #[error("piece was placed on other team's tile")]
   PieceOnEnemyTile,
+  #[error("place doesn't belong to this board")]
+  PieceNotOnBoard,
 }
 
 pub struct Board {
   tiles: Array2<Tile>,
+  pieces: HashMap<Piece<Placed>, (usize, usize)>,
 }
 
 impl Board {
@@ -49,7 +52,10 @@ impl Board {
     tiles.row_mut(size + 1).fill(Tile::Wall);
     tiles.column_mut(0).fill(Tile::Wall);
     tiles.column_mut(size + 1).fill(Tile::Wall);
-    Board { tiles }
+    Board {
+      tiles,
+      pieces: HashMap::new(),
+    }
   }
 
   /// Returns interactive tiles of the board.
@@ -102,11 +108,13 @@ impl Board {
     for (x, y) in piece.occupied_coords_iter() {
       tiles[(position.1 + x, position.0 + y)] = Tile::Occupied(piece.team);
     }
-    Ok(piece.placed_at(position))
+    let piece = piece.placed_at(position);
+    self.pieces.insert(piece.clone(), position);
+    Ok(piece)
   }
 
   /// Tries to put piece on board at given position. Panics if it can't.
-  /// Returns sane piece in `Placed` state.
+  /// Returns same piece in `Placed` state.
   pub fn place_piece(
     &mut self,
     piece: Piece<Released>,
@@ -115,6 +123,32 @@ impl Board {
     self
       .try_place_piece(piece, position)
       .unwrap_or_else(|e| panic!("could not put piece on the board: {e}"))
+  }
+
+  /// Tries to remove piece from board. Returns same piece in `Released` state
+  /// or an error that occured.
+  pub fn try_remove_piece(
+    &mut self,
+    piece: Piece<Placed>,
+  ) -> Result<Piece<Released>, BoardError> {
+    let mut tiles = self.get_interactive_tiles_mut();
+    let position = piece.position();
+    for (x, y) in piece.occupied_coords_iter() {
+      tiles[(position.1 + x, position.0 + y)] = Tile::Empty(Team::None);
+    }
+    self
+      .pieces
+      .remove(&piece)
+      .ok_or(BoardError::PieceNotOnBoard)?;
+    Ok(piece.released())
+  }
+
+  /// Tries to remove piece from board. Panics if it can't. Returns same piece
+  /// in `Released` state.
+  pub fn remove_piece(&mut self, piece: Piece<Placed>) -> Piece<Released> {
+    self
+      .try_remove_piece(piece)
+      .unwrap_or_else(|_| panic!("could not remove piece from the board"))
   }
 }
 
@@ -125,7 +159,7 @@ impl Default for Board {
 }
 
 impl Display for Board {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+  fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
     write!(f, "\n   ")?;
     for i in 0..self.tiles.ncols() - 2 {
       write!(f, "{i:>2}")?;
@@ -234,8 +268,10 @@ mod tests {
 
   /// Test if it is possible to fill the enitre board using all white pieces,
   /// black pieces and the cathedral. There should be no empty tiles left.
+  /// Then removes each placed piece from the board and check if the board is
+  /// empty.
   #[test]
-  fn test_fill_board_with_pieces() -> Result<(), BoardError> {
+  fn test_fill_and_free_board() -> Result<(), BoardError> {
     let w_tavern1 = Piece::new_tavern(Team::White);
     let w_tavern2 = Piece::new_tavern(Team::White);
     let w_stable1 = Piece::new_stable(Team::White);
@@ -269,56 +305,91 @@ mod tests {
     let cathedral = Piece::new_cathedral();
 
     let mut board = Board::default();
-    board.try_place_piece(w_tavern1, (0, 0))?;
-    board.try_place_piece(w_abbey, (0, 0))?;
-    board.try_place_piece(w_stable1, (3, 0))?;
+    let w_tavern1_placed = board.try_place_piece(w_tavern1, (0, 0))?;
+    let w_abbey_placed = board.try_place_piece(w_abbey, (0, 0))?;
+    let w_stable1_placed = board.try_place_piece(w_stable1, (3, 0))?;
     w_stable2.rotate_clockwise();
-    board.try_place_piece(w_stable2, (4, 0))?;
+    let w_stable2_placed = board.try_place_piece(w_stable2, (4, 0))?;
     w_academy.rotate_clockwise();
-    board.try_place_piece(w_academy, (5, 0))?;
-    board.try_place_piece(w_square, (7, 0))?;
-    board.try_place_piece(w_tavern2, (0, 2))?;
+    let w_academy_placed = board.try_place_piece(w_academy, (5, 0))?;
+    let w_square_placed = board.try_place_piece(w_square, (7, 0))?;
+    let w_tavern2_placed = board.try_place_piece(w_tavern2, (0, 2))?;
     w_manor.rotate_clockwise();
     w_manor.rotate_clockwise();
-    board.try_place_piece(w_manor, (1, 1))?;
+    let w_manor_placed = board.try_place_piece(w_manor, (1, 1))?;
     w_tower.rotate_counterclockwise();
-    board.try_place_piece(w_tower, (4, 1))?;
-    board.try_place_piece(w_inn1, (0, 3))?;
-    board.try_place_piece(w_infirmary, (1, 3))?;
+    let w_tower_placed = board.try_place_piece(w_tower, (4, 1))?;
+    let w_inn1_placed = board.try_place_piece(w_inn1, (0, 3))?;
+    let w_infirmary_placed = board.try_place_piece(w_infirmary, (1, 3))?;
     w_castle.rotate_clockwise();
-    board.try_place_piece(w_castle, (3, 3))?;
-    board.try_place_piece(w_bridge, (0, 5))?;
+    let w_castle_placed = board.try_place_piece(w_castle, (3, 3))?;
+    let w_bridge_placed = board.try_place_piece(w_bridge, (0, 5))?;
     w_inn2.rotate_counterclockwise();
-    board.try_place_piece(w_inn2, (1, 5))?;
+    let w_inn2_placed = board.try_place_piece(w_inn2, (1, 5))?;
 
-    board.try_place_piece(b_bridge, (9, 0))?;
-    board.try_place_piece(b_tavern1, (8, 2))?;
+    let b_bridge_placed = board.try_place_piece(b_bridge, (9, 0))?;
+    let b_tavern1_placed = board.try_place_piece(b_tavern1, (8, 2))?;
     b_manor.rotate_clockwise();
     b_manor.rotate_clockwise();
-    board.try_place_piece(b_manor, (6, 3))?;
+    let b_manor_placed = board.try_place_piece(b_manor, (6, 3))?;
     b_castle.rotate_clockwise();
-    board.try_place_piece(b_castle, (8, 3))?;
+    let b_castle_placed = board.try_place_piece(b_castle, (8, 3))?;
     b_inn1.rotate_counterclockwise();
-    board.try_place_piece(b_inn1, (5, 4))?;
-    board.try_place_piece(b_infirmary, (2, 6))?;
+    let b_inn1_placed = board.try_place_piece(b_inn1, (5, 4))?;
+    let b_infirmary_placed = board.try_place_piece(b_infirmary, (2, 6))?;
     b_tower.rotate_clockwise();
-    board.try_place_piece(b_tower, (4, 6))?;
+    let b_tower_placed = board.try_place_piece(b_tower, (4, 6))?;
     b_abbey.rotate_clockwise();
-    board.try_place_piece(b_abbey, (8, 6))?;
+    let b_abbey_placed = board.try_place_piece(b_abbey, (8, 6))?;
     b_academy.rotate_clockwise();
     b_academy.rotate_clockwise();
-    board.try_place_piece(b_academy, (0, 7))?;
-    board.try_place_piece(b_square, (4, 8))?;
+    let b_academy_placed = board.try_place_piece(b_academy, (0, 7))?;
+    let b_square_placed = board.try_place_piece(b_square, (4, 8))?;
     b_stable1.rotate_clockwise();
-    board.try_place_piece(b_stable1, (0, 9))?;
-    board.try_place_piece(b_tavern2, (3, 9))?;
+    let b_stable1_placed = board.try_place_piece(b_stable1, (0, 9))?;
+    let b_tavern2_placed = board.try_place_piece(b_tavern2, (3, 9))?;
     b_stable2.rotate_clockwise();
-    board.try_place_piece(b_stable2, (6, 9))?;
+    let b_stable2_placed = board.try_place_piece(b_stable2, (6, 9))?;
     b_inn2.rotate_clockwise();
     b_inn2.rotate_clockwise();
-    board.try_place_piece(b_inn2, (8, 8))?;
+    let b_inn2_placed = board.try_place_piece(b_inn2, (8, 8))?;
 
-    board.try_place_piece(cathedral, (6, 5))?;
+    let cathedral_placed = board.try_place_piece(cathedral, (6, 5))?;
+
+    board.try_remove_piece(w_tavern1_placed)?;
+    board.try_remove_piece(w_abbey_placed)?;
+    board.try_remove_piece(w_stable1_placed)?;
+    board.try_remove_piece(w_stable2_placed)?;
+    board.try_remove_piece(w_academy_placed)?;
+    board.try_remove_piece(w_square_placed)?;
+    board.try_remove_piece(w_tavern2_placed)?;
+    board.try_remove_piece(w_manor_placed)?;
+    board.try_remove_piece(w_tower_placed)?;
+    board.try_remove_piece(w_inn1_placed)?;
+    board.try_remove_piece(w_infirmary_placed)?;
+    board.try_remove_piece(w_castle_placed)?;
+    board.try_remove_piece(w_bridge_placed)?;
+    board.try_remove_piece(w_inn2_placed)?;
+    board.try_remove_piece(b_bridge_placed)?;
+    board.try_remove_piece(b_tavern1_placed)?;
+    board.try_remove_piece(b_manor_placed)?;
+    board.try_remove_piece(b_castle_placed)?;
+    board.try_remove_piece(b_inn1_placed)?;
+    board.try_remove_piece(b_infirmary_placed)?;
+    board.try_remove_piece(b_tower_placed)?;
+    board.try_remove_piece(b_abbey_placed)?;
+    board.try_remove_piece(b_academy_placed)?;
+    board.try_remove_piece(b_square_placed)?;
+    board.try_remove_piece(b_stable1_placed)?;
+    board.try_remove_piece(b_tavern2_placed)?;
+    board.try_remove_piece(b_stable2_placed)?;
+    board.try_remove_piece(b_inn2_placed)?;
+    board.try_remove_piece(cathedral_placed)?;
+
+    assert!(board
+      .get_interactive_tiles()
+      .iter()
+      .all(|t| *t == Tile::Empty(Team::None)));
 
     Ok(())
   }
