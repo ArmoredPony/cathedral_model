@@ -5,6 +5,7 @@ use thiserror::Error;
 
 use crate::{
   piece::{Piece, Placed, Released},
+  Position,
   Team,
 };
 
@@ -39,7 +40,7 @@ pub enum BoardError {
 
 pub struct Board {
   tiles: Array2<Tile>,
-  pieces: HashMap<Piece<Placed>, (usize, usize)>,
+  pieces: HashMap<Piece<Placed>, Position>,
 }
 
 impl Board {
@@ -77,12 +78,12 @@ impl Board {
   pub fn can_place_piece(
     &self,
     piece: &Piece<Released>,
-    position: (usize, usize),
+    position: Position,
   ) -> Result<(), BoardError> {
     let tiles = self.get_interactive_tiles();
-    for (x, y) in piece.occupied_coords_iter() {
+    for Position { x, y } in piece.occupied_coords_iter() {
       let tile = tiles
-        .get((position.1 + x, position.0 + y))
+        .get((position.y + x, position.x + y))
         .ok_or(BoardError::PieceOutOfBounds)?;
       match tile {
         Tile::Wall => return Err(BoardError::PieceOutOfBounds),
@@ -101,12 +102,12 @@ impl Board {
   pub fn try_place_piece(
     &mut self,
     piece: Piece<Released>,
-    position: (usize, usize),
+    position: Position,
   ) -> Result<Piece<Placed>, BoardError> {
     self.can_place_piece(&piece, position)?;
     let mut tiles = self.get_interactive_tiles_mut();
-    for (x, y) in piece.occupied_coords_iter() {
-      tiles[(position.1 + x, position.0 + y)] = Tile::Occupied(piece.team);
+    for Position { x, y } in piece.occupied_coords_iter() {
+      tiles[(position.y + x, position.x + y)] = Tile::Occupied(piece.team);
     }
     let piece = piece.placed_at(position);
     self.pieces.insert(piece.clone(), position);
@@ -118,7 +119,7 @@ impl Board {
   pub fn place_piece(
     &mut self,
     piece: Piece<Released>,
-    position: (usize, usize),
+    position: Position,
   ) -> Piece<Placed> {
     self
       .try_place_piece(piece, position)
@@ -133,8 +134,8 @@ impl Board {
   ) -> Result<Piece<Released>, BoardError> {
     let mut tiles = self.get_interactive_tiles_mut();
     let position = piece.position();
-    for (x, y) in piece.occupied_coords_iter() {
-      tiles[(position.1 + x, position.0 + y)] = Tile::Empty(Team::None);
+    for Position { x, y } in piece.occupied_coords_iter() {
+      tiles[(position.y + x, position.x + y)] = Tile::Empty(Team::None);
     }
     self
       .pieces
@@ -203,32 +204,32 @@ mod tests {
   fn test_can_place_piece() {
     let board = Board::default();
     let tavern = Piece::new_tavern(Team::White);
-    assert!(board.can_place_piece(&tavern, (0, 0)).is_ok());
+    assert!(board.can_place_piece(&tavern, (0, 0).into()).is_ok());
 
-    assert!(board.can_place_piece(&tavern, (9, 9)).is_ok());
+    assert!(board.can_place_piece(&tavern, (9, 9).into()).is_ok());
 
     assert_eq!(
-      board.can_place_piece(&tavern, (10, 0)),
+      board.can_place_piece(&tavern, (10, 0).into()),
       Err(BoardError::PieceOutOfBounds)
     );
 
     assert_eq!(
-      board.can_place_piece(&tavern, (0, 10)),
+      board.can_place_piece(&tavern, (0, 10).into()),
       Err(BoardError::PieceOutOfBounds)
     );
 
     let cathedral = Piece::new_cathedral();
-    assert!(board.can_place_piece(&cathedral, (0, 0)).is_ok());
+    assert!(board.can_place_piece(&cathedral, (0, 0).into()).is_ok());
 
-    assert!(board.can_place_piece(&cathedral, (7, 6)).is_ok());
+    assert!(board.can_place_piece(&cathedral, (7, 6).into()).is_ok());
 
     assert_eq!(
-      board.can_place_piece(&cathedral, (7, 7)),
+      board.can_place_piece(&cathedral, (7, 7).into()),
       Err(BoardError::PieceOutOfBounds)
     );
 
     assert_eq!(
-      board.can_place_piece(&cathedral, (8, 6)),
+      board.can_place_piece(&cathedral, (8, 6).into()),
       Err(BoardError::PieceOutOfBounds)
     );
   }
@@ -240,19 +241,20 @@ mod tests {
     let inn = Piece::new_inn(Team::White);
     assert_eq!(
       board
-        .try_place_piece(inn, (0, 9))
+        .try_place_piece(inn, (0, 9).into())
         .expect_err("must be error"),
       BoardError::PieceOutOfBounds
     );
 
     let white_tavern = Piece::new_tavern(Team::White);
-    let white_tavern = board.try_place_piece(white_tavern, (1, 2)).unwrap();
-    assert_eq!(white_tavern.position(), (1, 2));
+    let white_tavern =
+      board.try_place_piece(white_tavern, (1, 2).into()).unwrap();
+    assert_eq!(white_tavern.position(), (1, 2).into());
 
     let black_tavern = Piece::new_tavern(Team::Black);
     assert_eq!(
       board
-        .try_place_piece(black_tavern, (1, 2))
+        .try_place_piece(black_tavern, (1, 2).into())
         .expect_err("must be error"),
       BoardError::PieceOnOccupiedTile
     );
@@ -260,7 +262,7 @@ mod tests {
     let black_infirmary = Piece::new_infirmary(Team::Black);
     assert_eq!(
       board
-        .try_place_piece(black_infirmary, (1, 1))
+        .try_place_piece(black_infirmary, (1, 1).into())
         .expect_err("must be error"),
       BoardError::PieceOnOccupiedTile
     );
@@ -305,56 +307,56 @@ mod tests {
     let cathedral = Piece::new_cathedral();
 
     let mut board = Board::default();
-    let w_tavern1_placed = board.try_place_piece(w_tavern1, (0, 0))?;
-    let w_abbey_placed = board.try_place_piece(w_abbey, (0, 0))?;
-    let w_stable1_placed = board.try_place_piece(w_stable1, (3, 0))?;
+    let w_tavern1_placed = board.try_place_piece(w_tavern1, (0, 0).into())?;
+    let w_abbey_placed = board.try_place_piece(w_abbey, (0, 0).into())?;
+    let w_stable1_placed = board.try_place_piece(w_stable1, (3, 0).into())?;
     w_stable2.rotate_clockwise();
-    let w_stable2_placed = board.try_place_piece(w_stable2, (4, 0))?;
+    let w_stable2_placed = board.try_place_piece(w_stable2, (4, 0).into())?;
     w_academy.rotate_clockwise();
-    let w_academy_placed = board.try_place_piece(w_academy, (5, 0))?;
-    let w_square_placed = board.try_place_piece(w_square, (7, 0))?;
-    let w_tavern2_placed = board.try_place_piece(w_tavern2, (0, 2))?;
+    let w_academy_placed = board.try_place_piece(w_academy, (5, 0).into())?;
+    let w_square_placed = board.try_place_piece(w_square, (7, 0).into())?;
+    let w_tavern2_placed = board.try_place_piece(w_tavern2, (0, 2).into())?;
     w_manor.rotate_clockwise();
     w_manor.rotate_clockwise();
-    let w_manor_placed = board.try_place_piece(w_manor, (1, 1))?;
+    let w_manor_placed = board.try_place_piece(w_manor, (1, 1).into())?;
     w_tower.rotate_counterclockwise();
-    let w_tower_placed = board.try_place_piece(w_tower, (4, 1))?;
-    let w_inn1_placed = board.try_place_piece(w_inn1, (0, 3))?;
-    let w_infirmary_placed = board.try_place_piece(w_infirmary, (1, 3))?;
+    let w_tower_placed = board.try_place_piece(w_tower, (4, 1).into())?;
+    let w_inn1_placed = board.try_place_piece(w_inn1, (0, 3).into())?;
+    let w_infirmary_placed = board.try_place_piece(w_infirmary, (1, 3).into())?;
     w_castle.rotate_clockwise();
-    let w_castle_placed = board.try_place_piece(w_castle, (3, 3))?;
-    let w_bridge_placed = board.try_place_piece(w_bridge, (0, 5))?;
+    let w_castle_placed = board.try_place_piece(w_castle, (3, 3).into())?;
+    let w_bridge_placed = board.try_place_piece(w_bridge, (0, 5).into())?;
     w_inn2.rotate_counterclockwise();
-    let w_inn2_placed = board.try_place_piece(w_inn2, (1, 5))?;
+    let w_inn2_placed = board.try_place_piece(w_inn2, (1, 5).into())?;
 
-    let b_bridge_placed = board.try_place_piece(b_bridge, (9, 0))?;
-    let b_tavern1_placed = board.try_place_piece(b_tavern1, (8, 2))?;
+    let b_bridge_placed = board.try_place_piece(b_bridge, (9, 0).into())?;
+    let b_tavern1_placed = board.try_place_piece(b_tavern1, (8, 2).into())?;
     b_manor.rotate_clockwise();
     b_manor.rotate_clockwise();
-    let b_manor_placed = board.try_place_piece(b_manor, (6, 3))?;
+    let b_manor_placed = board.try_place_piece(b_manor, (6, 3).into())?;
     b_castle.rotate_clockwise();
-    let b_castle_placed = board.try_place_piece(b_castle, (8, 3))?;
+    let b_castle_placed = board.try_place_piece(b_castle, (8, 3).into())?;
     b_inn1.rotate_counterclockwise();
-    let b_inn1_placed = board.try_place_piece(b_inn1, (5, 4))?;
-    let b_infirmary_placed = board.try_place_piece(b_infirmary, (2, 6))?;
+    let b_inn1_placed = board.try_place_piece(b_inn1, (5, 4).into())?;
+    let b_infirmary_placed = board.try_place_piece(b_infirmary, (2, 6).into())?;
     b_tower.rotate_clockwise();
-    let b_tower_placed = board.try_place_piece(b_tower, (4, 6))?;
+    let b_tower_placed = board.try_place_piece(b_tower, (4, 6).into())?;
     b_abbey.rotate_clockwise();
-    let b_abbey_placed = board.try_place_piece(b_abbey, (8, 6))?;
+    let b_abbey_placed = board.try_place_piece(b_abbey, (8, 6).into())?;
     b_academy.rotate_clockwise();
     b_academy.rotate_clockwise();
-    let b_academy_placed = board.try_place_piece(b_academy, (0, 7))?;
-    let b_square_placed = board.try_place_piece(b_square, (4, 8))?;
+    let b_academy_placed = board.try_place_piece(b_academy, (0, 7).into())?;
+    let b_square_placed = board.try_place_piece(b_square, (4, 8).into())?;
     b_stable1.rotate_clockwise();
-    let b_stable1_placed = board.try_place_piece(b_stable1, (0, 9))?;
-    let b_tavern2_placed = board.try_place_piece(b_tavern2, (3, 9))?;
+    let b_stable1_placed = board.try_place_piece(b_stable1, (0, 9).into())?;
+    let b_tavern2_placed = board.try_place_piece(b_tavern2, (3, 9).into())?;
     b_stable2.rotate_clockwise();
-    let b_stable2_placed = board.try_place_piece(b_stable2, (6, 9))?;
+    let b_stable2_placed = board.try_place_piece(b_stable2, (6, 9).into())?;
     b_inn2.rotate_clockwise();
     b_inn2.rotate_clockwise();
-    let b_inn2_placed = board.try_place_piece(b_inn2, (8, 8))?;
+    let b_inn2_placed = board.try_place_piece(b_inn2, (8, 8).into())?;
 
-    let cathedral_placed = board.try_place_piece(cathedral, (6, 5))?;
+    let cathedral_placed = board.try_place_piece(cathedral, (6, 5).into())?;
 
     board.try_remove_piece(w_tavern1_placed)?;
     board.try_remove_piece(w_abbey_placed)?;

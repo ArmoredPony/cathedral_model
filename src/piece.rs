@@ -15,7 +15,7 @@ impl PieceState for Released {}
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Piece<S: PieceState> {
-  position: (usize, usize),
+  position: Position,
   pub team: Team,
   pub layout: Array2<bool>,
   _state: PhantomData<S>,
@@ -23,12 +23,11 @@ pub struct Piece<S: PieceState> {
 
 impl<S: PieceState> Piece<S> {
   /// Returns iterator of tiles' local coordinates that this piece occupies.
-  pub fn occupied_coords_iter(
-    &self,
-  ) -> impl Iterator<Item = (usize, usize)> + '_ {
+  pub fn occupied_coords_iter(&self) -> impl Iterator<Item = Position> + '_ {
     (0..self.layout.nrows())
       .flat_map(move |i| (0..self.layout.ncols()).map(move |j| (i, j)))
       .filter(|coords| self.layout[*coords])
+      .map(Position::from)
   }
 }
 
@@ -277,7 +276,7 @@ impl Piece<Released> {
 
   /// Emulates placing a piece on some position. Changes its internal
   /// position to match provided one, also changes its state to Placed.
-  pub fn placed_at(self, position: (usize, usize)) -> Piece<Placed> {
+  pub fn placed_at(self, position: Position) -> Piece<Placed> {
     Piece {
       position,
       team: self.team,
@@ -288,7 +287,7 @@ impl Piece<Released> {
 }
 
 impl Piece<Placed> {
-  pub fn position(&self) -> (usize, usize) {
+  pub fn position(&self) -> Position {
     self.position
   }
 

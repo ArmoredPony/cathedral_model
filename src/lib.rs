@@ -5,11 +5,20 @@ use ndarray::Array2;
 pub mod board;
 pub mod piece;
 
-// #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
-// pub struct UVec2 {
-//   x: usize,
-//   y: usize,
-// }
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Default)]
+pub struct Position {
+  x: usize,
+  y: usize,
+}
+
+impl From<(usize, usize)> for Position {
+  fn from(value: (usize, usize)) -> Self {
+    Position {
+      x: value.0,
+      y: value.1,
+    }
+  }
+}
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Team {
