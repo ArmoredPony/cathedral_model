@@ -14,10 +14,39 @@ pub enum Released {}
 impl PieceState for Released {}
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum Rotation {
+  UP,
+  DOWN,
+  LEFT,
+  RIGHT,
+}
+
+impl Rotation {
+  pub fn rotated_clockwise(self) -> Self {
+    match self {
+      Rotation::UP => Rotation::RIGHT,
+      Rotation::RIGHT => Rotation::DOWN,
+      Rotation::DOWN => Rotation::LEFT,
+      Rotation::LEFT => Rotation::UP,
+    }
+  }
+
+  pub fn rotated_counterclockwise(self) -> Self {
+    match self {
+      Rotation::UP => Rotation::LEFT,
+      Rotation::LEFT => Rotation::DOWN,
+      Rotation::DOWN => Rotation::RIGHT,
+      Rotation::RIGHT => Rotation::UP,
+    }
+  }
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Piece<S: PieceState> {
   team: Team,
   layout: Array2<bool>,
-
+  position: Position,
+  rotation: Rotation,
   _state: PhantomData<S>,
 }
 
@@ -44,6 +73,8 @@ impl Piece<Released> {
     Piece {
       team,
       layout: array![[true]],
+      position: Position::default(),
+      rotation: Rotation::UP,
       _state: PhantomData,
     }
   }
@@ -60,6 +91,8 @@ impl Piece<Released> {
         [true], //
         [true]
       ],
+      position: Position::default(),
+      rotation: Rotation::UP,
       _state: PhantomData,
     }
   }
@@ -76,6 +109,8 @@ impl Piece<Released> {
         [true, true], //
         [true, false]
       ],
+      position: Position::default(),
+      rotation: Rotation::UP,
       _state: PhantomData,
     }
   }
@@ -94,6 +129,8 @@ impl Piece<Released> {
         [true],
         [true]
       ],
+      position: Position::default(),
+      rotation: Rotation::UP,
       _state: PhantomData,
     }
   }
@@ -110,6 +147,8 @@ impl Piece<Released> {
         [true, true], //
         [true, true]
       ],
+      position: Position::default(),
+      rotation: Rotation::UP,
       _state: PhantomData,
     }
   }
@@ -126,6 +165,8 @@ impl Piece<Released> {
         [true, true, true], //
         [false, true, false]
       ],
+      position: Position::default(),
+      rotation: Rotation::UP,
       _state: PhantomData,
     }
   }
@@ -150,6 +191,8 @@ impl Piece<Released> {
         ],
         _ => unreachable!("a piece can be either black or white"),
       },
+      position: Position::default(),
+      rotation: Rotation::UP,
       _state: PhantomData,
     }
   }
@@ -177,6 +220,8 @@ impl Piece<Released> {
         ],
         _ => unreachable!("a piece can be either black or white"),
       },
+      position: Position::default(),
+      rotation: Rotation::UP,
       _state: PhantomData,
     }
   }
@@ -195,6 +240,8 @@ impl Piece<Released> {
         [true, true, true],
         [false, true, false],
       ],
+      position: Position::default(),
+      rotation: Rotation::UP,
       _state: PhantomData,
     }
   }
@@ -211,6 +258,8 @@ impl Piece<Released> {
         [true, true, true], //
         [true, false, true],
       ],
+      position: Position::default(),
+      rotation: Rotation::UP,
       _state: PhantomData,
     }
   }
@@ -229,6 +278,8 @@ impl Piece<Released> {
         [true, true, false],
         [true, false, false],
       ],
+      position: Position::default(),
+      rotation: Rotation::UP,
       _state: PhantomData,
     }
   }
@@ -250,6 +301,8 @@ impl Piece<Released> {
         [false, true, false],
         [false, true, false],
       ],
+      position: Position::default(),
+      rotation: Rotation::UP,
       _state: PhantomData,
     }
   }
@@ -258,30 +311,41 @@ impl Piece<Released> {
   pub fn rotate_clockwise(&mut self) {
     self.layout.swap_axes(0, 1);
     self.layout.invert_axis(Axis(1));
+    self.rotation = self.rotation.clone().rotated_clockwise();
   }
 
   /// Rotates piece 90 degrees counterclockwise.
   pub fn rotate_counterclockwise(&mut self) {
     self.layout.swap_axes(0, 1);
     self.layout.invert_axis(Axis(0));
+    self.rotation = self.rotation.clone().rotated_counterclockwise();
   }
 
-  /// Emulates placing a piece down. Changes its state to `Placed`.
-  pub fn placed(self) -> Piece<Placed> {
+  /// Emulates placing a piece down at given position.
+  /// Changes its position and state to `Placed`.
+  pub fn placed_at(self, position: Position) -> Piece<Placed> {
     Piece {
       team: self.team,
       layout: self.layout,
+      position,
+      rotation: Rotation::UP,
       _state: PhantomData,
     }
   }
 }
 
 impl Piece<Placed> {
+  pub fn position(&self) -> Position {
+    self.position
+  }
+
   /// Emulates picking a piece up. Changes its state to `Released`.
   pub fn released(self) -> Piece<Released> {
     Piece {
       team: self.team,
       layout: self.layout,
+      position: Position::default(),
+      rotation: Rotation::UP,
       _state: PhantomData,
     }
   }
