@@ -1,11 +1,12 @@
 use std::{collections::HashSet, fmt::Display};
 
 use ndarray::{s, Array, Array2, ArrayView2, ArrayViewMut2};
-use thiserror::Error;
 
 use crate::{
+  error::BoardError,
   piece::{Piece, Placed, Released},
-  Position, Team,
+  Position,
+  Team,
 };
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -23,18 +24,6 @@ impl Display for Tile {
       Tile::Wall => write!(f, "╲╲"),
     }
   }
-}
-
-#[derive(Error, Debug, PartialEq, Eq)]
-pub enum BoardError {
-  #[error("piece was placed out of bounds")]
-  PieceOutOfBounds,
-  #[error("piece was placed on occupied tile")]
-  PieceOnOccupiedTile,
-  #[error("piece was placed on other team's tile")]
-  PieceOnEnemyTile,
-  #[error("place doesn't belong to this board")]
-  PieceNotOnBoard,
 }
 
 pub struct Board {
@@ -142,6 +131,74 @@ impl Board {
     self
       .try_remove_piece(piece)
       .unwrap_or_else(|e| panic!("{}", e))
+  }
+
+  /// Returns adjacent positions (vertically, horizontally and diagonally) to
+  /// given position.
+  fn adjacent_positions(position: Position) -> [Position; 8] {
+    let Position { x, y } = position;
+    [
+      Position { x, y: y + 1 },
+      Position { x: x + 1, y: y + 1 },
+      Position { x: x + 1, y },
+      Position { x: x + 1, y: y - 1 },
+      Position { x, y: y - 1 },
+      Position { x: x - 1, y: y - 1 },
+      Position { x: x - 1, y },
+      Position { x: x - 1, y: y + 1 },
+    ]
+  }
+
+  /// Returns true if a tile is traversible by flood fill algorithm.
+  fn is_traversible(&self, p: Position, team: Team) -> bool {
+    match self.tiles.get((p.x, p.y)).expect("went out of bounds") {
+      Tile::Occupied(t) if *t != team => true,
+      Tile::Empty(_) => true,
+      _ => false,
+    }
+  }
+
+  fn flood_fill_positions_into_set(
+    &self,
+    position: Position,
+    team: Team,
+    set: &mut HashSet<Position>,
+  ) {
+    if set.contains(&position) {
+      return;
+    }
+    set.insert(position);
+    let adjacent_positions = Self::adjacent_positions(position);
+    set.extend(adjacent_positions.to_owned());
+    for p in adjacent_positions
+      .into_iter()
+      .filter(|p| self.is_traversible(*p, team))
+    {
+      self.flood_fill_positions_into_set(p, team, set);
+    }
+  }
+
+  /// Searches for groups of tiles that can be claimed by placed piece.
+  fn tile_groups(&self, piece: &Piece<Placed>) -> Vec<HashSet<Position>> {
+    let initial_tiles_positions: HashSet<Position> = piece
+      .occupied_coords_iter()
+      .flat_map(Self::adjacent_positions)
+      .collect::<HashSet<_>>()
+      .into_iter()
+      .filter(|p| self.is_traversible(*p, piece.team()))
+      .collect();
+
+    let mut groups: Vec<HashSet<Position>> = Vec::new();
+    for p in initial_tiles_positions {
+      if groups.iter().any(|set| set.contains(&p)) {
+        continue;
+      }
+      let mut set: HashSet<Position> = HashSet::new();
+      self.flood_fill_positions_into_set(p, piece.team(), &mut set);
+      groups.push(set);
+    }
+
+    groups
   }
 }
 

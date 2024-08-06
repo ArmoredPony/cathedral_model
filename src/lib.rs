@@ -3,6 +3,7 @@ use std::fmt::Display;
 use ndarray::Array2;
 
 pub mod board;
+pub mod error;
 pub mod piece;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Default)]
