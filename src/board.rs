@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt::Display};
+use std::{collections::HashSet, fmt::Display};
 
 use ndarray::{s, Array, Array2, ArrayView2, ArrayViewMut2};
 use thiserror::Error;
@@ -39,7 +39,7 @@ pub enum BoardError {
 
 pub struct Board {
   tiles: Array2<Tile>,
-  pieces: HashMap<Position, Piece<Placed>>,
+  pieces: HashSet<Piece<Placed>>,
 }
 
 impl Board {
@@ -54,7 +54,7 @@ impl Board {
     tiles.column_mut(size + 1).fill(Tile::Wall);
     Board {
       tiles,
-      pieces: HashMap::new(),
+      pieces: HashSet::new(),
     }
   }
 
@@ -103,11 +103,12 @@ impl Board {
     position: Position,
   ) -> Result<(), BoardError> {
     self.can_place_piece(&piece, position)?;
+    let piece = piece.placed_at(position);
     let mut tiles = self.get_interactive_tiles_mut();
     for Position { x, y } in piece.occupied_coords_iter() {
       tiles[(position.y + x, position.x + y)] = Tile::Occupied(piece.team());
     }
-    self.pieces.insert(position, piece.placed());
+    self.pieces.insert(piece);
     Ok(())
   }
 
@@ -118,31 +119,28 @@ impl Board {
       .unwrap_or_else(|e| panic!("could not put piece on the board: {e}"))
   }
 
-  /// Tries to remove piece at given poistion from board.
+  /// Tries to remove piece from board.
   /// Returns that piece in `Released` state or an error that occured.
-  pub fn try_remove_from_position(
+  pub fn try_remove_piece(
     &mut self,
-    position: Position,
+    piece: Piece<Placed>,
   ) -> Result<Piece<Released>, BoardError> {
-    let piece = self
-      .pieces
-      .remove(&position)
-      .ok_or(BoardError::PieceNotOnBoard)?;
+    if !self.pieces.remove(&piece) {
+      return Err(BoardError::PieceNotOnBoard);
+    }
     let mut tiles = self.get_interactive_tiles_mut();
     for Position { x, y } in piece.occupied_coords_iter() {
-      tiles[(position.y + x, position.x + y)] = Tile::Empty(Team::None);
+      tiles[(piece.position().y + x, piece.position().x + y)] =
+        Tile::Empty(Team::None);
     }
     Ok(piece.released())
   }
 
-  /// Tries to remove piece at given poistion from board.
+  /// Tries to remove piece from board.
   /// Panics if it can't. Returns removed piece in `Released` state.
-  pub fn remove_from_position(
-    &mut self,
-    position: Position,
-  ) -> Piece<Released> {
+  pub fn remove_piece(&mut self, piece: Piece<Placed>) -> Piece<Released> {
     self
-      .try_remove_from_position(position)
+      .try_remove_piece(piece)
       .unwrap_or_else(|e| panic!("{}", e))
   }
 }
@@ -195,12 +193,12 @@ mod tests {
   }
 
   #[test]
-  fn test_can_place_piece() {
+  fn test_can_place_piece() -> Result<(), BoardError> {
     let board = Board::default();
     let tavern = Piece::new_tavern(Team::White);
-    assert!(board.can_place_piece(&tavern, (0, 0).into()).is_ok());
+    board.can_place_piece(&tavern, (0, 0).into())?;
 
-    assert!(board.can_place_piece(&tavern, (9, 9).into()).is_ok());
+    board.can_place_piece(&tavern, (9, 9).into())?;
 
     assert_eq!(
       board.can_place_piece(&tavern, (10, 0).into()),
@@ -213,9 +211,9 @@ mod tests {
     );
 
     let cathedral = Piece::new_cathedral();
-    assert!(board.can_place_piece(&cathedral, (0, 0).into()).is_ok());
+    board.can_place_piece(&cathedral, (0, 0).into())?;
 
-    assert!(board.can_place_piece(&cathedral, (7, 6).into()).is_ok());
+    board.can_place_piece(&cathedral, (7, 6).into())?;
 
     assert_eq!(
       board.can_place_piece(&cathedral, (7, 7).into()),
@@ -226,10 +224,12 @@ mod tests {
       board.can_place_piece(&cathedral, (8, 6).into()),
       Err(BoardError::PieceOutOfBounds)
     );
+
+    Ok(())
   }
 
   #[test]
-  fn test_try_place_piece() {
+  fn test_try_place_piece() -> Result<(), BoardError> {
     let mut board = Board::default();
 
     let inn = Piece::new_inn(Team::White);
@@ -241,9 +241,7 @@ mod tests {
     );
 
     let white_tavern = Piece::new_tavern(Team::White);
-    let white_tavern = board
-      .try_place_piece_at(white_tavern, (1, 2).into())
-      .unwrap();
+    board.try_place_piece_at(white_tavern, (1, 2).into())?;
 
     let black_tavern = Piece::new_tavern(Team::Black);
     assert_eq!(
@@ -260,6 +258,8 @@ mod tests {
         .expect_err("must be error"),
       BoardError::PieceOnOccupiedTile
     );
+
+    Ok(())
   }
 
   /// Test if it is possible to fill the enitre board using all white pieces,
@@ -353,10 +353,20 @@ mod tests {
 
     board.try_place_piece_at(cathedral, (6, 5).into())?;
 
+    // println!("{board}");
     assert!(board
       .get_interactive_tiles()
       .iter()
       .all(|t| matches!(t, Tile::Occupied(_))));
+
+    for p in board.pieces.iter().cloned().collect::<Vec<_>>() {
+      board.try_remove_piece(p)?;
+    }
+    // println!("{board}");
+    assert!(board
+      .get_interactive_tiles()
+      .iter()
+      .all(|t| matches!(t, Tile::Empty(Team::None))));
 
     Ok(())
   }
