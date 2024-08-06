@@ -86,7 +86,7 @@ impl Board {
         .ok_or(BoardError::PieceOutOfBounds)?;
       match tile {
         Tile::Wall => return Err(BoardError::PieceOutOfBounds),
-        Tile::Empty(team) if piece.team.is_opposing_team(team) => {
+        Tile::Empty(team) if piece.team().is_opposing_team(team) => {
           return Err(BoardError::PieceOnEnemyTile)
         }
         Tile::Occupied(_) => return Err(BoardError::PieceOnOccupiedTile),
@@ -105,7 +105,7 @@ impl Board {
     self.can_place_piece(&piece, position)?;
     let mut tiles = self.get_interactive_tiles_mut();
     for Position { x, y } in piece.occupied_coords_iter() {
-      tiles[(position.y + x, position.x + y)] = Tile::Occupied(piece.team);
+      tiles[(position.y + x, position.x + y)] = Tile::Occupied(piece.team());
     }
     self.pieces.insert(position, piece.placed());
     Ok(())

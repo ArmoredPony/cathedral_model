@@ -15,12 +15,17 @@ impl PieceState for Released {}
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Piece<S: PieceState> {
-  pub team: Team,
-  pub layout: Array2<bool>,
+  team: Team,
+  layout: Array2<bool>,
+
   _state: PhantomData<S>,
 }
 
 impl<S: PieceState> Piece<S> {
+  pub fn team(&self) -> Team {
+    self.team
+  }
+
   /// Returns iterator of tiles' local coordinates that this piece occupies.
   pub fn occupied_coords_iter(&self) -> impl Iterator<Item = Position> + '_ {
     (0..self.layout.nrows())
