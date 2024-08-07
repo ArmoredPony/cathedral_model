@@ -1,4 +1,7 @@
-use std::{collections::HashSet, fmt::Display};
+use std::{
+  collections::{HashMap, HashSet},
+  fmt::Display,
+};
 
 use ndarray::{s, Array, Array2, ArrayView2, ArrayViewMut2};
 
@@ -28,7 +31,7 @@ impl Display for Tile {
 
 pub struct Board {
   tiles: Array2<Tile>,
-  pieces: HashSet<Piece<Placed>>,
+  pieces: HashMap<Position, Piece<Placed>>,
 }
 
 impl Board {
@@ -43,7 +46,7 @@ impl Board {
     tiles.column_mut(size + 1).fill(Tile::Wall);
     Board {
       tiles,
-      pieces: HashSet::new(),
+      pieces: HashMap::new(),
     }
   }
 
@@ -97,7 +100,13 @@ impl Board {
     for Position { x, y } in piece.occupied_coords_iter() {
       tiles[(position.y + x, position.x + y)] = Tile::Occupied(piece.team());
     }
-    self.pieces.insert(piece);
+    let first_occupied_position = piece
+      .occupied_coords_iter()
+      .next()
+      .expect("piece must occupy at least one tile");
+    self
+      .pieces
+      .insert(position + first_occupied_position, piece);
     Ok(())
   }
 
@@ -113,9 +122,11 @@ impl Board {
   pub fn try_remove_piece(
     &mut self,
     piece: Piece<Placed>,
+    found_at: Position,
   ) -> Result<Piece<Released>, BoardError> {
-    if !self.pieces.remove(&piece) {
-      return Err(BoardError::PieceNotOnBoard);
+    match self.pieces.remove(&found_at) {
+      Some(_) => (),
+      None => return Err(BoardError::PieceNotOnBoard),
     }
     let mut tiles = self.get_interactive_tiles_mut();
     for Position { x, y } in piece.occupied_coords_iter() {
@@ -127,9 +138,13 @@ impl Board {
 
   /// Tries to remove piece from board.
   /// Panics if it can't. Returns removed piece in `Released` state.
-  pub fn remove_piece(&mut self, piece: Piece<Placed>) -> Piece<Released> {
+  pub fn remove_piece(
+    &mut self,
+    piece: Piece<Placed>,
+    found_at: Position,
+  ) -> Piece<Released> {
     self
-      .try_remove_piece(piece)
+      .try_remove_piece(piece, found_at)
       .unwrap_or_else(|e| panic!("{}", e))
   }
 
@@ -158,6 +173,8 @@ impl Board {
     }
   }
 
+  /// Searches occupiable tile positions using flood fill algorithm and puts
+  /// them into set.
   fn flood_fill_positions_into_set(
     &self,
     position: Position,
@@ -187,7 +204,6 @@ impl Board {
       .into_iter()
       .filter(|p| self.is_traversible(*p, piece.team()))
       .collect();
-
     let mut groups: Vec<HashSet<Position>> = Vec::new();
     for p in initial_tiles_positions {
       if groups.iter().any(|set| set.contains(&p)) {
@@ -197,7 +213,6 @@ impl Board {
       self.flood_fill_positions_into_set(p, piece.team(), &mut set);
       groups.push(set);
     }
-
     groups
   }
 }
@@ -410,16 +425,17 @@ mod tests {
 
     board.try_place_piece_at(cathedral, (6, 5).into())?;
 
-    // println!("{board}");
+    println!("{board}");
     assert!(board
       .get_interactive_tiles()
       .iter()
       .all(|t| matches!(t, Tile::Occupied(_))));
 
-    for p in board.pieces.iter().cloned().collect::<Vec<_>>() {
-      board.try_remove_piece(p)?;
+    let piece_pos = board.pieces.clone().into_iter().collect::<Vec<_>>();
+    for (pos, piece) in piece_pos.into_iter() {
+      board.try_remove_piece(piece, pos)?;
     }
-    // println!("{board}");
+    println!("{board}");
     assert!(board
       .get_interactive_tiles()
       .iter()
