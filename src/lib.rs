@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, ops::Add};
 
 use ndarray::Array2;
 
@@ -34,6 +34,17 @@ impl Team {
       (*self, *team),
       (Team::White, Team::Black) | (Team::Black, Team::White)
     )
+  }
+}
+
+impl Add for Position {
+  type Output = Position;
+
+  fn add(self, rhs: Self) -> Self::Output {
+    Position {
+      x: self.x + rhs.x,
+      y: self.y + rhs.y,
+    }
   }
 }
 
