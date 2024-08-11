@@ -429,8 +429,8 @@ mod tests {
       .all(|t| matches!(t, Tile::Occupied(_))));
 
     let piece_pos = board.pieces.clone().into_iter().collect::<Vec<_>>();
-    for (pos, piece) in piece_pos.into_iter() {
-      board.try_remove_piece(piece, pos)?;
+    for (pos, _) in piece_pos.into_iter() {
+      board.try_remove_piece(pos)?;
     }
     println!("{board}");
     assert!(board
@@ -460,8 +460,8 @@ mod tests {
     assert_eq!(tile_groups[0].len(), 97);
 
     let tavern = Piece::new_tavern(Team::Black);
-    let tavern_placed = tavern.clone().placed_at((0, 0).into());
-    board.place_piece_at(tavern, (0, 0).into());
+    let tavern_placed = tavern.clone().placed_at((9, 9).into());
+    board.place_piece_at(tavern, (9, 9).into());
     let tile_groups = board.tile_groups(&tavern_placed);
     assert_eq!(tile_groups.len(), 1);
     assert_eq!(tile_groups[0].len(), 99);
