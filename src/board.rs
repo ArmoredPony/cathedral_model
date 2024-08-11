@@ -181,16 +181,12 @@ impl Board {
     team: Team,
     set: &mut HashSet<Position>,
   ) {
-    if set.contains(&position) {
-      return;
-    }
     set.insert(position);
-    let adjacent_positions = Self::adjacent_positions(position);
-    set.extend(adjacent_positions.to_owned());
-    for p in adjacent_positions
+    let adjacent_positions = Self::adjacent_positions(position)
       .into_iter()
-      .filter(|p| self.is_traversible(*p, team))
-    {
+      .filter(|p| self.is_traversible(*p, team) && !set.contains(p))
+      .collect::<Vec<_>>();
+    for p in adjacent_positions {
       self.flood_fill_positions_into_set(p, team, set);
     }
   }
@@ -199,6 +195,7 @@ impl Board {
   fn tile_groups(&self, piece: &Piece<Placed>) -> Vec<HashSet<Position>> {
     let initial_tiles_positions: HashSet<Position> = piece
       .occupied_coords_iter()
+      .map(|p| p + piece.position() + Position { x: 1, y: 1 })
       .flat_map(Self::adjacent_positions)
       .collect::<HashSet<_>>()
       .into_iter()
@@ -442,5 +439,31 @@ mod tests {
       .all(|t| matches!(t, Tile::Empty(Team::None))));
 
     Ok(())
+  }
+
+  #[test]
+  fn test_detected_tile_groups() {
+    let mut board = Board::default();
+
+    let tavern = Piece::new_tavern(Team::White);
+    let tavern_placed = tavern.clone().placed_at((0, 0).into());
+    board.place_piece_at(tavern, (0, 0).into());
+    let tile_groups = board.tile_groups(&tavern_placed);
+    assert_eq!(tile_groups.len(), 1);
+    assert_eq!(tile_groups[0].len(), 99);
+
+    let stable = Piece::new_stable(Team::White);
+    let stable_placed = stable.clone().placed_at((1, 0).into());
+    board.place_piece_at(stable, (1, 0).into());
+    let tile_groups = board.tile_groups(&stable_placed);
+    assert_eq!(tile_groups.len(), 1);
+    assert_eq!(tile_groups[0].len(), 97);
+
+    let tavern = Piece::new_tavern(Team::Black);
+    let tavern_placed = tavern.clone().placed_at((0, 0).into());
+    board.place_piece_at(tavern, (0, 0).into());
+    let tile_groups = board.tile_groups(&tavern_placed);
+    assert_eq!(tile_groups.len(), 1);
+    assert_eq!(tile_groups[0].len(), 99);
   }
 }
