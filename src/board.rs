@@ -55,9 +55,11 @@ impl Board {
       match tile {
         Tile::Wall => return Err(BoardError::PieceOutOfBounds(position)),
         Tile::Empty(team) if piece.team().is_opposing_team(team) => {
-          return Err(BoardError::PieceOnEnemyTile)
+          return Err(BoardError::PieceOnEnemyTile(position))
         }
-        Tile::Occupied(_) => return Err(BoardError::PieceOnOccupiedTile),
+        Tile::Occupied(_) => {
+          return Err(BoardError::PieceOnOccupiedTile(position))
+        }
         _ => (),
       }
     }
@@ -220,20 +222,20 @@ mod tests {
     board.try_place_piece(white_tavern, (1, 2).into())?;
 
     let black_tavern = Piece::new_tavern(Team::Black);
-    assert_eq!(
+    assert!(matches!(
       board
         .try_place_piece(black_tavern, (1, 2).into())
         .expect_err("must be error"),
-      BoardError::PieceOnOccupiedTile
-    );
+      BoardError::PieceOnOccupiedTile(_)
+    ));
 
     let black_infirmary = Piece::new_infirmary(Team::Black);
-    assert_eq!(
+    assert!(matches!(
       board
         .try_place_piece(black_infirmary, (1, 1).into())
         .expect_err("must be error"),
-      BoardError::PieceOnOccupiedTile
-    );
+      BoardError::PieceOnOccupiedTile(_)
+    ));
 
     Ok(())
   }
