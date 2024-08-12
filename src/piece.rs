@@ -58,10 +58,11 @@ impl<S: PieceState> Piece<S> {
 
   /// Returns iterator of tiles' local coordinates that this piece occupies.
   pub fn occupied_coords_iter(&self) -> impl Iterator<Item = Position> + '_ {
-    (0..self.layout.nrows())
-      .flat_map(move |i| (0..self.layout.ncols()).map(move |j| (i, j)))
-      .filter(|coords| self.layout[*coords])
-      .map(Position::from)
+    self
+      .layout
+      .indexed_iter()
+      .filter(|(_, occupied)| **occupied)
+      .map(|(coords, _)| coords.into())
   }
 }
 
