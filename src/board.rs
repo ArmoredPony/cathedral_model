@@ -1,7 +1,4 @@
-use std::{
-  collections::{HashMap, HashSet},
-  fmt::Display,
-};
+use std::{collections::HashMap, fmt::Display};
 
 use ndarray::{s, Array, Array2, ArrayView2, ArrayViewMut2};
 
@@ -93,9 +90,12 @@ impl Board {
     &mut self,
     piece: Piece<Released>,
     position: Position,
-  ) -> Result<(), BoardError> {
+  ) -> Result<Vec<Piece<Released>>, BoardError> {
     self.can_place_piece(&piece, position)?;
     let piece = piece.placed_at(position);
+
+    let removed_pieces = Vec::<Piece<Released>>::new();
+
     let mut tiles = self.get_interactive_tiles_mut();
     for Position { x, y } in piece.occupied_coords_iter() {
       tiles[(position.y + x, position.x + y)] = Tile::Occupied(piece.team());
@@ -107,27 +107,31 @@ impl Board {
     self
       .pieces
       .insert(position + first_occupied_position, piece);
-    Ok(())
+
+    Ok(removed_pieces)
   }
 
   /// Tries to put piece on board at given position. Panics if it can't.
-  pub fn place_piece_at(&mut self, piece: Piece<Released>, position: Position) {
+  pub fn place_piece_at(
+    &mut self,
+    piece: Piece<Released>,
+    position: Position,
+  ) -> Vec<Piece<Released>> {
     self
       .try_place_piece_at(piece, position)
       .unwrap_or_else(|e| panic!("could not put piece on the board: {e}"))
   }
 
   /// Tries to remove piece from board.
-  /// Returns that piece in `Released` state or an error that occured.
+  /// Returns removed piece in `Released` state or an error that occured.
   pub fn try_remove_piece(
     &mut self,
-    piece: Piece<Placed>,
-    found_at: Position,
+    position: Position,
   ) -> Result<Piece<Released>, BoardError> {
-    match self.pieces.remove(&found_at) {
-      Some(_) => (),
+    let piece = match self.pieces.remove(&position) {
+      Some(piece) => piece,
       None => return Err(BoardError::PieceNotOnBoard),
-    }
+    };
     let mut tiles = self.get_interactive_tiles_mut();
     for Position { x, y } in piece.occupied_coords_iter() {
       tiles[(piece.position().y + x, piece.position().x + y)] =
@@ -138,79 +142,10 @@ impl Board {
 
   /// Tries to remove piece from board.
   /// Panics if it can't. Returns removed piece in `Released` state.
-  pub fn remove_piece(
-    &mut self,
-    piece: Piece<Placed>,
-    found_at: Position,
-  ) -> Piece<Released> {
+  pub fn remove_piece(&mut self, position: Position) -> Piece<Released> {
     self
-      .try_remove_piece(piece, found_at)
+      .try_remove_piece(position)
       .unwrap_or_else(|e| panic!("{}", e))
-  }
-
-  /// Returns adjacent positions (vertically, horizontally and diagonally) to
-  /// given position.
-  fn adjacent_positions(position: Position) -> [Position; 8] {
-    let Position { x, y } = position;
-    [
-      Position { x, y: y + 1 },
-      Position { x: x + 1, y: y + 1 },
-      Position { x: x + 1, y },
-      Position { x: x + 1, y: y - 1 },
-      Position { x, y: y - 1 },
-      Position { x: x - 1, y: y - 1 },
-      Position { x: x - 1, y },
-      Position { x: x - 1, y: y + 1 },
-    ]
-  }
-
-  /// Returns true if a tile is traversible by flood fill algorithm.
-  fn is_traversible(&self, p: Position, team: Team) -> bool {
-    match self.tiles.get((p.x, p.y)).expect("went out of bounds") {
-      Tile::Occupied(t) if *t != team => true,
-      Tile::Empty(_) => true,
-      _ => false,
-    }
-  }
-
-  /// Searches occupiable tile positions using flood fill algorithm and puts
-  /// them into set.
-  fn flood_fill_positions_into_set(
-    &self,
-    position: Position,
-    team: Team,
-    set: &mut HashSet<Position>,
-  ) {
-    set.insert(position);
-    let adjacent_positions = Self::adjacent_positions(position)
-      .into_iter()
-      .filter(|p| self.is_traversible(*p, team) && !set.contains(p))
-      .collect::<Vec<_>>();
-    for p in adjacent_positions {
-      self.flood_fill_positions_into_set(p, team, set);
-    }
-  }
-
-  /// Searches for groups of tiles that can be claimed by placed piece.
-  fn tile_groups(&self, piece: &Piece<Placed>) -> Vec<HashSet<Position>> {
-    let initial_tiles_positions: HashSet<Position> = piece
-      .occupied_coords_iter()
-      .map(|p| p + piece.position() + Position { x: 1, y: 1 })
-      .flat_map(Self::adjacent_positions)
-      .collect::<HashSet<_>>()
-      .into_iter()
-      .filter(|p| self.is_traversible(*p, piece.team()))
-      .collect();
-    let mut groups: Vec<HashSet<Position>> = Vec::new();
-    for p in initial_tiles_positions {
-      if groups.iter().any(|set| set.contains(&p)) {
-        continue;
-      }
-      let mut set: HashSet<Position> = HashSet::new();
-      self.flood_fill_positions_into_set(p, piece.team(), &mut set);
-      groups.push(set);
-    }
-    groups
   }
 }
 
@@ -439,31 +374,5 @@ mod tests {
       .all(|t| matches!(t, Tile::Empty(Team::None))));
 
     Ok(())
-  }
-
-  #[test]
-  fn test_detected_tile_groups() {
-    let mut board = Board::default();
-
-    let tavern = Piece::new_tavern(Team::White);
-    let tavern_placed = tavern.clone().placed_at((0, 0).into());
-    board.place_piece_at(tavern, (0, 0).into());
-    let tile_groups = board.tile_groups(&tavern_placed);
-    assert_eq!(tile_groups.len(), 1);
-    assert_eq!(tile_groups[0].len(), 99);
-
-    let stable = Piece::new_stable(Team::White);
-    let stable_placed = stable.clone().placed_at((1, 0).into());
-    board.place_piece_at(stable, (1, 0).into());
-    let tile_groups = board.tile_groups(&stable_placed);
-    assert_eq!(tile_groups.len(), 1);
-    assert_eq!(tile_groups[0].len(), 97);
-
-    let tavern = Piece::new_tavern(Team::Black);
-    let tavern_placed = tavern.clone().placed_at((9, 9).into());
-    board.place_piece_at(tavern, (9, 9).into());
-    let tile_groups = board.tile_groups(&tavern_placed);
-    assert_eq!(tile_groups.len(), 1);
-    assert_eq!(tile_groups[0].len(), 99);
   }
 }
