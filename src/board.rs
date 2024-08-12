@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt::Display};
 
-use ndarray::{s, Array, Array2, ArrayView2, ArrayViewMut2};
+use ndarray::{Array, Array2};
 
 use crate::{
   error::BoardError,
@@ -33,32 +33,10 @@ pub struct Board {
 
 impl Board {
   pub fn with_size(size: usize) -> Self {
-    let mut tiles = Array::from_elem(
-      (size + 2, size + 2), //
-      Tile::Empty(Team::None),
-    );
-    tiles.row_mut(0).fill(Tile::Wall);
-    tiles.row_mut(size + 1).fill(Tile::Wall);
-    tiles.column_mut(0).fill(Tile::Wall);
-    tiles.column_mut(size + 1).fill(Tile::Wall);
     Board {
-      tiles,
+      tiles: Array::from_elem((size, size), Tile::Empty(Team::None)),
       pieces: HashMap::new(),
     }
-  }
-
-  /// Returns interactive tiles of the board.
-  /// I.e. returns those tiles that a play can put a piece on.
-  #[allow(clippy::reversed_empty_ranges)]
-  pub fn get_interactive_tiles(&self) -> ArrayView2<'_, Tile> {
-    self.tiles.slice(s![1..-1, 1..-1])
-  }
-
-  /// Returns interactive tiles of the board.
-  /// I.e. returns those tiles that a play can put a piece on.
-  #[allow(clippy::reversed_empty_ranges)]
-  pub fn get_interactive_tiles_mut(&mut self) -> ArrayViewMut2<'_, Tile> {
-    self.tiles.slice_mut(s![1..-1, 1..-1])
   }
 
   /// Checks if piece can be placed on board at given position. Returns possible
@@ -68,13 +46,14 @@ impl Board {
     piece: &Piece<Released>,
     position: Position,
   ) -> Result<(), BoardError> {
-    let tiles = self.get_interactive_tiles();
-    for Position { x, y } in piece.occupied_coords_iter() {
-      let tile = tiles
-        .get((position.y + x, position.x + y))
-        .ok_or(BoardError::PieceOutOfBounds)?;
+    for occupied in piece.occupied_coords_iter() {
+      let position = position + occupied;
+      let tile = self
+        .tiles
+        .get((position.x, position.y))
+        .ok_or(BoardError::PieceOutOfBounds(position))?;
       match tile {
-        Tile::Wall => return Err(BoardError::PieceOutOfBounds),
+        Tile::Wall => return Err(BoardError::PieceOutOfBounds(position)),
         Tile::Empty(team) if piece.team().is_opposing_team(team) => {
           return Err(BoardError::PieceOnEnemyTile)
         }
@@ -86,7 +65,7 @@ impl Board {
   }
 
   /// Tries to put piece on board at given position.
-  pub fn try_place_piece_at(
+  pub fn try_place_piece(
     &mut self,
     piece: Piece<Released>,
     position: Position,
@@ -96,9 +75,9 @@ impl Board {
 
     let removed_pieces = Vec::<Piece<Released>>::new();
 
-    let mut tiles = self.get_interactive_tiles_mut();
-    for Position { x, y } in piece.occupied_coords_iter() {
-      tiles[(position.y + x, position.x + y)] = Tile::Occupied(piece.team());
+    for occupied in piece.occupied_coords_iter() {
+      let position = piece.position() + occupied;
+      self.tiles[(position.x, position.y)] = Tile::Occupied(piece.team());
     }
     let first_occupied_position = piece
       .occupied_coords_iter()
@@ -106,19 +85,19 @@ impl Board {
       .expect("piece must occupy at least one tile");
     self
       .pieces
-      .insert(position + first_occupied_position, piece);
+      .insert(piece.position() + first_occupied_position, piece);
 
     Ok(removed_pieces)
   }
 
   /// Tries to put piece on board at given position. Panics if it can't.
-  pub fn place_piece_at(
+  pub fn place_piece(
     &mut self,
     piece: Piece<Released>,
     position: Position,
   ) -> Vec<Piece<Released>> {
     self
-      .try_place_piece_at(piece, position)
+      .try_place_piece(piece, position)
       .unwrap_or_else(|e| panic!("could not put piece on the board: {e}"))
   }
 
@@ -132,10 +111,9 @@ impl Board {
       Some(piece) => piece,
       None => return Err(BoardError::PieceNotOnBoard),
     };
-    let mut tiles = self.get_interactive_tiles_mut();
-    for Position { x, y } in piece.occupied_coords_iter() {
-      tiles[(piece.position().y + x, piece.position().x + y)] =
-        Tile::Empty(Team::None);
+    for occupied in piece.occupied_coords_iter() {
+      let position = piece.position() + occupied;
+      self.tiles[(position.x, position.y)] = Tile::Empty(Team::None);
     }
     Ok(piece.released())
   }
@@ -158,7 +136,7 @@ impl Default for Board {
 impl Display for Board {
   fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
     write!(f, "\n   ")?;
-    for i in 0..self.tiles.ncols() - 2 {
+    for i in 0..self.tiles.ncols() {
       write!(f, "{i:>2}")?;
     }
     writeln!(f)?;
@@ -167,17 +145,11 @@ impl Display for Board {
       .rows()
       .into_iter()
       .enumerate()
-      .skip(1)
       .try_for_each(|(i, row)| {
-        if (1..self.tiles.nrows() - 1).contains(&i) {
-          write!(f, "{:>2} ", i - 1)?;
-        } else {
-          write!(f, "   ")?;
+        if (0..self.tiles.nrows()).contains(&i) {
+          write!(f, "{:>2} ", i)?;
         }
-        row
-          .iter()
-          .skip(1)
-          .try_for_each(|cell| write!(f, "{cell}"))?;
+        row.iter().try_for_each(|cell| write!(f, "{cell}"))?;
         writeln!(f)
       })
   }
@@ -190,8 +162,8 @@ mod tests {
   #[test]
   fn test_interactive_tiles_empty_on_empty_board() {
     let board = Board::default();
-    let interactive_tiles = board.get_interactive_tiles();
-    assert!(interactive_tiles
+    assert!(board
+      .tiles
       .iter()
       .all(|tile| *tile == Tile::Empty(Team::None)));
   }
@@ -204,30 +176,30 @@ mod tests {
 
     board.can_place_piece(&tavern, (9, 9).into())?;
 
-    assert_eq!(
+    assert!(matches!(
       board.can_place_piece(&tavern, (10, 0).into()),
-      Err(BoardError::PieceOutOfBounds)
-    );
+      Err(BoardError::PieceOutOfBounds(_))
+    ));
 
-    assert_eq!(
+    assert!(matches!(
       board.can_place_piece(&tavern, (0, 10).into()),
-      Err(BoardError::PieceOutOfBounds)
-    );
+      Err(BoardError::PieceOutOfBounds(_))
+    ));
 
     let cathedral = Piece::new_cathedral();
     board.can_place_piece(&cathedral, (0, 0).into())?;
 
-    board.can_place_piece(&cathedral, (7, 6).into())?;
+    board.can_place_piece(&cathedral, (6, 7).into())?;
 
-    assert_eq!(
+    assert!(matches!(
       board.can_place_piece(&cathedral, (7, 7).into()),
-      Err(BoardError::PieceOutOfBounds)
-    );
+      Err(BoardError::PieceOutOfBounds(_))
+    ));
 
-    assert_eq!(
+    assert!(matches!(
       board.can_place_piece(&cathedral, (8, 6).into()),
-      Err(BoardError::PieceOutOfBounds)
-    );
+      Err(BoardError::PieceOutOfBounds(_))
+    ));
 
     Ok(())
   }
@@ -237,20 +209,20 @@ mod tests {
     let mut board = Board::default();
 
     let inn = Piece::new_inn(Team::White);
-    assert_eq!(
+    assert!(matches!(
       board
-        .try_place_piece_at(inn, (0, 9).into())
+        .try_place_piece(inn, (0, 9).into())
         .expect_err("must be error"),
-      BoardError::PieceOutOfBounds
-    );
+      BoardError::PieceOutOfBounds(_)
+    ));
 
     let white_tavern = Piece::new_tavern(Team::White);
-    board.try_place_piece_at(white_tavern, (1, 2).into())?;
+    board.try_place_piece(white_tavern, (1, 2).into())?;
 
     let black_tavern = Piece::new_tavern(Team::Black);
     assert_eq!(
       board
-        .try_place_piece_at(black_tavern, (1, 2).into())
+        .try_place_piece(black_tavern, (1, 2).into())
         .expect_err("must be error"),
       BoardError::PieceOnOccupiedTile
     );
@@ -258,7 +230,7 @@ mod tests {
     let black_infirmary = Piece::new_infirmary(Team::Black);
     assert_eq!(
       board
-        .try_place_piece_at(black_infirmary, (1, 1).into())
+        .try_place_piece(black_infirmary, (1, 1).into())
         .expect_err("must be error"),
       BoardError::PieceOnOccupiedTile
     );
@@ -306,70 +278,65 @@ mod tests {
 
     let mut board = Board::default();
 
-    board.try_place_piece_at(w_tavern1, (0, 0).into())?;
-    board.try_place_piece_at(w_abbey, (0, 0).into())?;
-    board.try_place_piece_at(w_stable1, (3, 0).into())?;
+    board.try_place_piece(w_tavern1, (0, 0).into())?;
+    board.try_place_piece(w_abbey, (0, 0).into())?;
+    board.try_place_piece(w_stable1, (0, 3).into())?;
     w_stable2.rotate_clockwise();
-    board.try_place_piece_at(w_stable2, (4, 0).into())?;
+    board.try_place_piece(w_stable2, (0, 4).into())?;
     w_academy.rotate_clockwise();
-    board.try_place_piece_at(w_academy, (5, 0).into())?;
-    board.try_place_piece_at(w_square, (7, 0).into())?;
-    board.try_place_piece_at(w_tavern2, (0, 2).into())?;
+    board.try_place_piece(w_academy, (0, 5).into())?;
+    board.try_place_piece(w_square, (0, 7).into())?;
+    board.try_place_piece(w_tavern2, (2, 0).into())?;
     w_manor.rotate_clockwise();
     w_manor.rotate_clockwise();
-    board.try_place_piece_at(w_manor, (1, 1).into())?;
+    board.try_place_piece(w_manor, (1, 1).into())?;
     w_tower.rotate_counterclockwise();
-    board.try_place_piece_at(w_tower, (4, 1).into())?;
-    board.try_place_piece_at(w_inn1, (0, 3).into())?;
-    board.try_place_piece_at(w_infirmary, (1, 3).into())?;
+    board.try_place_piece(w_tower, (1, 4).into())?;
+    board.try_place_piece(w_inn1, (3, 0).into())?;
+    board.try_place_piece(w_infirmary, (3, 1).into())?;
     w_castle.rotate_clockwise();
-    board.try_place_piece_at(w_castle, (3, 3).into())?;
-    board.try_place_piece_at(w_bridge, (0, 5).into())?;
+    board.try_place_piece(w_castle, (3, 3).into())?;
+    board.try_place_piece(w_bridge, (5, 0).into())?;
     w_inn2.rotate_counterclockwise();
-    board.try_place_piece_at(w_inn2, (1, 5).into())?;
+    board.try_place_piece(w_inn2, (5, 1).into())?;
 
-    board.try_place_piece_at(b_bridge, (9, 0).into())?;
-    board.try_place_piece_at(b_tavern1, (8, 2).into())?;
+    board.try_place_piece(b_bridge, (0, 9).into())?;
+    board.try_place_piece(b_tavern1, (2, 8).into())?;
     b_manor.rotate_clockwise();
     b_manor.rotate_clockwise();
-    board.try_place_piece_at(b_manor, (6, 3).into())?;
+    board.try_place_piece(b_manor, (3, 6).into())?;
     b_castle.rotate_clockwise();
-    board.try_place_piece_at(b_castle, (8, 3).into())?;
+    board.try_place_piece(b_castle, (3, 8).into())?;
     b_inn1.rotate_counterclockwise();
-    board.try_place_piece_at(b_inn1, (5, 4).into())?;
-    board.try_place_piece_at(b_infirmary, (2, 6).into())?;
+    board.try_place_piece(b_inn1, (4, 5).into())?;
+    board.try_place_piece(b_infirmary, (6, 2).into())?;
     b_tower.rotate_clockwise();
-    board.try_place_piece_at(b_tower, (4, 6).into())?;
+    board.try_place_piece(b_tower, (6, 4).into())?;
     b_abbey.rotate_clockwise();
-    board.try_place_piece_at(b_abbey, (8, 6).into())?;
+    board.try_place_piece(b_abbey, (6, 8).into())?;
     b_academy.rotate_clockwise();
     b_academy.rotate_clockwise();
-    board.try_place_piece_at(b_academy, (0, 7).into())?;
-    board.try_place_piece_at(b_square, (4, 8).into())?;
+    board.try_place_piece(b_academy, (7, 0).into())?;
+    board.try_place_piece(b_square, (8, 4).into())?;
     b_stable1.rotate_clockwise();
-    board.try_place_piece_at(b_stable1, (0, 9).into())?;
-    board.try_place_piece_at(b_tavern2, (3, 9).into())?;
+    board.try_place_piece(b_stable1, (9, 0).into())?;
+    board.try_place_piece(b_tavern2, (9, 3).into())?;
     b_stable2.rotate_clockwise();
-    board.try_place_piece_at(b_stable2, (6, 9).into())?;
+    board.try_place_piece(b_stable2, (9, 6).into())?;
     b_inn2.rotate_clockwise();
     b_inn2.rotate_clockwise();
-    board.try_place_piece_at(b_inn2, (8, 8).into())?;
+    board.try_place_piece(b_inn2, (8, 8).into())?;
 
-    board.try_place_piece_at(cathedral, (6, 5).into())?;
+    board.try_place_piece(cathedral, (5, 6).into())?;
 
-    println!("{board}");
-    assert!(board
-      .get_interactive_tiles()
-      .iter()
-      .all(|t| matches!(t, Tile::Occupied(_))));
+    assert!(board.tiles.iter().all(|t| matches!(t, Tile::Occupied(_))));
 
     let piece_pos = board.pieces.clone().into_iter().collect::<Vec<_>>();
     for (pos, _) in piece_pos.into_iter() {
       board.try_remove_piece(pos)?;
     }
-    println!("{board}");
     assert!(board
-      .get_interactive_tiles()
+      .tiles
       .iter()
       .all(|t| matches!(t, Tile::Empty(Team::None))));
 
