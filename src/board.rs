@@ -1,4 +1,7 @@
-use std::{collections::HashMap, fmt::Display};
+use std::{
+  collections::{HashMap, HashSet},
+  fmt::Display,
+};
 
 use ndarray::{Array, Array2};
 
@@ -122,6 +125,46 @@ impl Board {
     self
       .try_remove_piece(position)
       .unwrap_or_else(|e| panic!("{}", e))
+  }
+
+  /// Returns `true` if `position` neighbours a wall tile position.
+  fn near_wall(&self, position: Position) -> bool {
+    let max_position = self.max_position();
+    position.x == 0
+      || position.y == 0
+      || position.x == max_position.x
+      || position.y == max_position.y
+  }
+
+  /// Returns `true` if tile at given `position` may form enclosing border
+  /// on this `team`'s turn.
+  fn does_position_form_border(&self, position: Position, team: Team) -> bool {
+    matches!(
+      self.tiles[(position.x, position.y)],
+      Tile::Occupied(t) if t == team
+    )
+  }
+
+  /// Returns `true` if tile at given `position` can be captured by playing a
+  /// piece of `team`.
+  fn is_position_capturable(&self, position: Position, team: Team) -> bool {
+    match self.tiles[(position.x, position.y)] {
+      Tile::Occupied(t) if t != team => true,
+      Tile::Empty(_) => true,
+      _ => false,
+    }
+  }
+
+  /// Returns a set of unique capturable positions adjacent to given `piece`.
+  fn adjacent_capturable_positions_for_piece(
+    &self,
+    piece: &Piece<Placed>,
+  ) -> HashSet<Position> {
+    piece
+      .occupied_positions_iter()
+      .flat_map(|p| p.diagonal_adjacent_positions_iter(self.max_position()))
+      .filter(|p| self.is_position_capturable(*p, piece.team()))
+      .collect()
   }
 }
 

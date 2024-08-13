@@ -24,7 +24,7 @@ impl Position {
 
   // pub const fn checked_add(self, rhs: Self) -> Option<Self>
   /// Returns iterator of orthogonal and diagonal adjacent positions to given
-  /// `position`. Positions with coordinates that are equal or bigger than
+  /// `position`. Positions with coordinates that are bigger than
   /// those of `upper_bound` position or less than 0 are not returned.
   pub fn diagonal_adjacent_positions_iter(
     self,
@@ -43,7 +43,7 @@ impl Position {
   }
 
   /// Returns iterator of orthogonal adjacent positions to given `position`.
-  /// Positions with coordinates that are equal or bigger than those of
+  /// Positions with coordinates that are bigger than those of
   /// `upper_bound` position or less than 0 are not returned.
   pub fn orthogonal_adjacent_positions_iter(
     self,
@@ -59,7 +59,7 @@ impl Position {
 
   /// Returns iterator of adjacent positions to given `position`.
   /// Coordinates of adjacent positions are passed with `coords` argument.
-  /// Positions with coordinates that are equal or bigger than those of
+  /// Positions with coordinates that are bigger than those of
   /// `upper_bound` position or less than 0 are not returned.
   fn adjacent_positions_iter(
     self,
