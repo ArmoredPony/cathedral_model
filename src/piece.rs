@@ -1,6 +1,7 @@
 use std::{fmt::Display, marker::PhantomData};
 
 use ndarray::{array, Axis};
+use position::Position;
 
 use super::*;
 

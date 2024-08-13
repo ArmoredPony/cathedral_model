@@ -1,36 +1,11 @@
-use std::{fmt::Display, ops::Add};
+use std::fmt::Display;
 
 use ndarray::Array2;
 
 pub mod board;
 pub mod error;
 pub mod piece;
-
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Default)]
-pub struct Position {
-  x: usize,
-  y: usize,
-}
-
-impl From<(usize, usize)> for Position {
-  fn from(value: (usize, usize)) -> Self {
-    Position {
-      x: value.0,
-      y: value.1,
-    }
-  }
-}
-
-impl Add for Position {
-  type Output = Position;
-
-  fn add(self, rhs: Self) -> Self::Output {
-    Position {
-      x: self.x + rhs.x,
-      y: self.y + rhs.y,
-    }
-  }
-}
+pub mod position;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Team {

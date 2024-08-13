@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-use crate::Position;
+use crate::position::Position;
 
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum BoardError {

@@ -5,7 +5,7 @@ use ndarray::{Array, Array2};
 use crate::{
   error::BoardError,
   piece::{Piece, Placed, Released},
-  Position,
+  position::Position,
   Team,
 };
 
