@@ -69,15 +69,14 @@ impl Position {
     coords.iter().filter_map(move |t| {
       let x = match self.x.overflowing_add_signed(t.0) {
         (_, true) => return None,
+        (v, _) if v >= upper_bound.x => return None,
         (v, _) => v,
       };
       let y = match self.y.overflowing_add_signed(t.1) {
         (_, true) => return None,
+        (v, _) if v >= upper_bound.y => return None,
         (v, _) => v,
       };
-      if x >= upper_bound.x || y >= upper_bound.y {
-        return None;
-      }
       Some(Self { x, y })
     })
   }
