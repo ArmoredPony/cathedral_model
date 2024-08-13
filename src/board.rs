@@ -46,20 +46,17 @@ impl Board {
     piece: &Piece<Released>,
     position: Position,
   ) -> Result<(), BoardError> {
-    for occupied in piece.occupied_coords_iter() {
-      let position = position + occupied;
+    for p in piece.occupied_positions_iter(position) {
       let tile = self
         .tiles
-        .get((position.x, position.y))
-        .ok_or(BoardError::PieceOutOfBounds(position))?;
+        .get((p.x, p.y))
+        .ok_or(BoardError::PieceOutOfBounds(p))?;
       match tile {
-        Tile::Wall => return Err(BoardError::PieceOutOfBounds(position)),
+        Tile::Wall => return Err(BoardError::PieceOutOfBounds(p)),
         Tile::Empty(team) if piece.team().is_opposing_team(team) => {
-          return Err(BoardError::PieceOnEnemyTile(position))
+          return Err(BoardError::PieceOnEnemyTile(p))
         }
-        Tile::Occupied(_) => {
-          return Err(BoardError::PieceOnOccupiedTile(position))
-        }
+        Tile::Occupied(_) => return Err(BoardError::PieceOnOccupiedTile(p)),
         _ => (),
       }
     }
@@ -77,17 +74,15 @@ impl Board {
 
     let removed_pieces = Vec::<Piece<Released>>::new();
 
-    for occupied in piece.occupied_coords_iter() {
-      let position = piece.position() + occupied;
-      self.tiles[(position.x, position.y)] = Tile::Occupied(piece.team());
+    for p in piece.occupied_positions_iter() {
+      self.tiles[(p.x, p.y)] = Tile::Occupied(piece.team());
     }
+
     let first_occupied_position = piece
-      .occupied_coords_iter()
+      .occupied_positions_iter()
       .next()
       .expect("piece must occupy at least one tile");
-    self
-      .pieces
-      .insert(piece.position() + first_occupied_position, piece);
+    self.pieces.insert(first_occupied_position, piece);
 
     Ok(removed_pieces)
   }
@@ -113,9 +108,8 @@ impl Board {
       Some(piece) => piece,
       None => return Err(BoardError::PieceNotOnBoard),
     };
-    for occupied in piece.occupied_coords_iter() {
-      let position = piece.position() + occupied;
-      self.tiles[(position.x, position.y)] = Tile::Empty(Team::None);
+    for p in piece.occupied_positions_iter() {
+      self.tiles[(p.x, p.y)] = Tile::Empty(Team::None);
     }
     Ok(piece.released())
   }

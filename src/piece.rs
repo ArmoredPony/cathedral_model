@@ -56,15 +56,6 @@ impl<S: PieceState> Piece<S> {
   pub fn team(&self) -> Team {
     self.team
   }
-
-  /// Returns iterator of tiles' local coordinates that this piece occupies.
-  pub fn occupied_coords_iter(&self) -> impl Iterator<Item = Position> + '_ {
-    self
-      .layout
-      .indexed_iter()
-      .filter(|(_, occupied)| **occupied)
-      .map(|(coords, _)| coords.into())
-  }
 }
 
 impl Piece<Released> {
@@ -310,6 +301,18 @@ impl Piece<Released> {
     }
   }
 
+  /// Emulates placing a piece down at given position.
+  /// Changes its position and state to `Placed`.
+  pub fn placed_at(self, position: Position) -> Piece<Placed> {
+    Piece {
+      team: self.team,
+      layout: self.layout,
+      position,
+      rotation: Rotation::UP,
+      _state: PhantomData,
+    }
+  }
+
   /// Rotates piece 90 degrees clockwise.
   pub fn rotate_clockwise(&mut self) {
     self.layout.swap_axes(0, 1);
@@ -324,16 +327,18 @@ impl Piece<Released> {
     self.rotation = self.rotation.clone().rotated_counterclockwise();
   }
 
-  /// Emulates placing a piece down at given position.
-  /// Changes its position and state to `Placed`.
-  pub fn placed_at(self, position: Position) -> Piece<Placed> {
-    Piece {
-      team: self.team,
-      layout: self.layout,
-      position,
-      rotation: Rotation::UP,
-      _state: PhantomData,
-    }
+  /// Returns iterator of tiles' local coordinates that this piece occupies.
+  /// Returned positions are relative to given `position` since `Released`
+  /// piece does not yet have a position of its own.
+  pub fn occupied_positions_iter(
+    &self,
+    position: Position,
+  ) -> impl Iterator<Item = Position> + '_ {
+    self
+      .layout
+      .indexed_iter()
+      .filter(|(_, occupied)| **occupied)
+      .map(move |(coords, _)| position + coords.into())
   }
 }
 
@@ -351,6 +356,16 @@ impl Piece<Placed> {
       rotation: Rotation::UP,
       _state: PhantomData,
     }
+  }
+
+  /// Returns iterator of tiles' local coordinates that this piece occupies.
+  /// Returned positions are relative to its position.
+  pub fn occupied_positions_iter(&self) -> impl Iterator<Item = Position> + '_ {
+    self
+      .layout
+      .indexed_iter()
+      .filter(|(_, occupied)| **occupied)
+      .map(move |(coords, _)| self.position() + coords.into())
   }
 }
 
