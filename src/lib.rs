@@ -21,6 +21,17 @@ impl From<(usize, usize)> for Position {
   }
 }
 
+impl Add for Position {
+  type Output = Position;
+
+  fn add(self, rhs: Self) -> Self::Output {
+    Position {
+      x: self.x + rhs.x,
+      y: self.y + rhs.y,
+    }
+  }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Team {
   White,
@@ -34,17 +45,6 @@ impl Team {
       (*self, *team),
       (Team::White, Team::Black) | (Team::Black, Team::White)
     )
-  }
-}
-
-impl Add for Position {
-  type Output = Position;
-
-  fn add(self, rhs: Self) -> Self::Output {
-    Position {
-      x: self.x + rhs.x,
-      y: self.y + rhs.y,
-    }
   }
 }
 
