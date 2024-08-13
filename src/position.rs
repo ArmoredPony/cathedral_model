@@ -1,4 +1,4 @@
-use std::ops::Add;
+use std::ops::{Add, Sub};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Default)]
 pub struct Position {
@@ -104,6 +104,17 @@ impl Add for Position {
     Self {
       x: self.x + rhs.x,
       y: self.y + rhs.y,
+    }
+  }
+}
+
+impl Sub for Position {
+  type Output = Self;
+
+  fn sub(self, rhs: Self) -> Self::Output {
+    Self {
+      x: self.x - rhs.x,
+      y: self.y - rhs.y,
     }
   }
 }

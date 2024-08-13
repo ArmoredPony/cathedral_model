@@ -39,6 +39,11 @@ impl Board {
     }
   }
 
+  /// Returns the futherest board position.
+  pub fn max_position(&self) -> Position {
+    Position::from(self.tiles.dim()) - Position { x: 1, y: 1 }
+  }
+
   /// Checks if piece can be placed on board at given position. Returns possible
   /// error that can occur during placement.
   pub fn can_place_piece(
@@ -154,6 +159,15 @@ impl Display for Board {
 #[cfg(test)]
 mod tests {
   use super::*;
+
+  #[test]
+  fn test_max_position() {
+    let board = Board::with_size(10);
+    assert_eq!(board.max_position(), (9, 9).into());
+
+    let board = Board::with_size(5);
+    assert_eq!(board.max_position(), (4, 4).into());
+  }
 
   #[test]
   fn test_interactive_tiles_empty_on_empty_board() {
