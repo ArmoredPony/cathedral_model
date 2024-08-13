@@ -33,7 +33,7 @@ pub struct Board {
 
 impl Board {
   pub fn with_size(size: usize) -> Self {
-    Board {
+    Self {
       tiles: Array::from_elem((size, size), Tile::Empty(Team::None)),
       pieces: HashMap::new(),
     }

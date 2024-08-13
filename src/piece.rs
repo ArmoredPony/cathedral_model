@@ -26,19 +26,19 @@ pub enum Rotation {
 impl Rotation {
   pub fn rotated_clockwise(self) -> Self {
     match self {
-      Rotation::UP => Rotation::RIGHT,
-      Rotation::RIGHT => Rotation::DOWN,
-      Rotation::DOWN => Rotation::LEFT,
-      Rotation::LEFT => Rotation::UP,
+      Self::UP => Self::RIGHT,
+      Self::RIGHT => Self::DOWN,
+      Self::DOWN => Self::LEFT,
+      Self::LEFT => Self::UP,
     }
   }
 
   pub fn rotated_counterclockwise(self) -> Self {
     match self {
-      Rotation::UP => Rotation::LEFT,
-      Rotation::LEFT => Rotation::DOWN,
-      Rotation::DOWN => Rotation::RIGHT,
-      Rotation::RIGHT => Rotation::UP,
+      Self::UP => Self::LEFT,
+      Self::LEFT => Self::DOWN,
+      Self::DOWN => Self::RIGHT,
+      Self::RIGHT => Self::UP,
     }
   }
 }
@@ -73,7 +73,7 @@ impl Piece<Released> {
   /// []
   /// </pre>
   pub fn new_tavern(team: Team) -> Self {
-    Piece {
+    Self {
       team,
       layout: array![[true]],
       position: Position::default(),
@@ -88,7 +88,7 @@ impl Piece<Released> {
   /// []
   /// </pre>
   pub fn new_stable(team: Team) -> Self {
-    Piece {
+    Self {
       team,
       layout: array![
         [true], //
@@ -106,7 +106,7 @@ impl Piece<Released> {
   /// []
   /// </pre>
   pub fn new_inn(team: Team) -> Self {
-    Piece {
+    Self {
       team,
       layout: array![
         [true, true], //
@@ -125,7 +125,7 @@ impl Piece<Released> {
   /// []
   /// </pre>
   pub fn new_bridge(team: Team) -> Self {
-    Piece {
+    Self {
       team,
       layout: array![
         [true], //
@@ -144,7 +144,7 @@ impl Piece<Released> {
   /// [][]
   /// </pre>
   pub fn new_square(team: Team) -> Self {
-    Piece {
+    Self {
       team,
       layout: array![
         [true, true], //
@@ -162,7 +162,7 @@ impl Piece<Released> {
   ///   []
   /// </pre>
   pub fn new_manor(team: Team) -> Self {
-    Piece {
+    Self {
       team,
       layout: array![
         [true, true, true], //
@@ -181,7 +181,7 @@ impl Piece<Released> {
   /// [][]      [][]
   /// </pre>
   pub fn new_abbey(team: Team) -> Self {
-    Piece {
+    Self {
       team,
       layout: match team {
         Team::White => array![
@@ -208,7 +208,7 @@ impl Piece<Released> {
   ///   []      []
   /// </pre>
   pub fn new_academy(team: Team) -> Self {
-    Piece {
+    Self {
       team,
       layout: match team {
         Team::White => array![
@@ -236,7 +236,7 @@ impl Piece<Released> {
   ///   []
   /// </pre>
   pub fn new_infirmary(team: Team) -> Self {
-    Piece {
+    Self {
       team,
       layout: array![
         [false, true, false], //
@@ -255,7 +255,7 @@ impl Piece<Released> {
   /// []  []
   /// </pre>
   pub fn new_castle(team: Team) -> Self {
-    Piece {
+    Self {
       team,
       layout: array![
         [true, true, true], //
@@ -274,7 +274,7 @@ impl Piece<Released> {
   /// []
   /// </pre>
   pub fn new_tower(team: Team) -> Self {
-    Piece {
+    Self {
       team,
       layout: array![
         [false, true, true], //
@@ -296,7 +296,7 @@ impl Piece<Released> {
   /// </pre>
   pub fn new_cathedral() -> Self {
     let team = Team::None;
-    Piece {
+    Self {
       team,
       layout: array![
         [false, true, false], //
