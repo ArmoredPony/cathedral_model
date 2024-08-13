@@ -92,6 +92,12 @@ impl From<(usize, usize)> for Position {
   }
 }
 
+impl From<Position> for (usize, usize) {
+  fn from(value: Position) -> Self {
+    (value.x, value.y)
+  }
+}
+
 impl Add for Position {
   type Output = Self;
 
