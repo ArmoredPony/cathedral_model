@@ -13,7 +13,6 @@ use crate::{
 pub enum Tile {
   Empty(Team),
   Occupied(Team),
-  Wall,
 }
 
 impl Display for Tile {
@@ -21,7 +20,6 @@ impl Display for Tile {
     match self {
       Tile::Empty(team) if *team == Team::None => write!(f, "  "),
       Tile::Empty(team) | Tile::Occupied(team) => write!(f, "{team}"),
-      Tile::Wall => write!(f, "╲╲"),
     }
   }
 }
@@ -57,7 +55,6 @@ impl Board {
         .get((p.x, p.y))
         .ok_or(BoardError::PieceOutOfBounds(p))?;
       match tile {
-        Tile::Wall => return Err(BoardError::PieceOutOfBounds(p)),
         Tile::Empty(team) if piece.team().is_opposing_team(team) => {
           return Err(BoardError::PieceOnEnemyTile(p))
         }
