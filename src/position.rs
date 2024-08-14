@@ -22,6 +22,11 @@ impl Position {
     })
   }
 
+  /// Calculates Manhattan distance between `self` and `other`.
+  pub fn manhattan_distance(&self, other: &Self) -> usize {
+    self.x.abs_diff(other.x) + self.y.abs_diff(other.y)
+  }
+
   // pub const fn checked_add(self, rhs: Self) -> Option<Self>
   /// Returns iterator of orthogonal and diagonal adjacent positions to given
   /// `position`. Positions with coordinates that are bigger than
@@ -124,6 +129,14 @@ mod tests {
   use std::collections::HashSet;
 
   use super::*;
+
+  #[test]
+  fn test_manhattan_distance() {
+    let p1 = Position { x: 1, y: 2 };
+    assert_eq!(p1.manhattan_distance(&p1), 0);
+    let p2 = Position { x: 2, y: 1 };
+    assert_eq!(p1.manhattan_distance(&p2), 2);
+  }
 
   #[test]
   fn test_orthogonal_adjacent_positions() {
