@@ -448,8 +448,8 @@ mod tests {
     let tile_sets = board.find_tile_sets(&piece);
     assert_eq!(tile_sets.len(), 2);
     assert_eq!(
-      tile_sets.iter().map(HashSet::len).collect::<Vec<_>>(), //
-      &[96, 1]
+      tile_sets.iter().map(HashSet::len).collect::<HashSet<_>>(), //
+      [96, 1].into()
     );
   }
 }
