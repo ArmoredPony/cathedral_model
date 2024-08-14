@@ -1,4 +1,7 @@
-use std::ops::{Add, Sub};
+use std::{
+  fmt::Display,
+  ops::{Add, Sub},
+};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Default)]
 pub struct Position {
@@ -121,6 +124,12 @@ impl Sub for Position {
       x: self.x - rhs.x,
       y: self.y - rhs.y,
     }
+  }
+}
+
+impl Display for Position {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(f, "{},{}", self.x, self.y)
   }
 }
 
