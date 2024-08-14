@@ -40,9 +40,9 @@ impl Board {
     }
   }
 
-  /// Returns the futherest board position.
-  pub fn max_position(&self) -> Position {
-    Position::from(self.tiles.dim()) - Position { x: 1, y: 1 }
+  /// Returns board's size as position.
+  pub fn size(&self) -> Position {
+    Position::from(self.tiles.dim())
   }
 
   /// Checks if piece can be placed on board at given position. Returns possible
@@ -129,7 +129,7 @@ impl Board {
 
   /// Returns `true` if `position` neighbours a wall tile position.
   fn near_wall(&self, position: Position) -> bool {
-    let max_position = self.max_position();
+    let max_position = self.size();
     position.x == 0
       || position.y == 0
       || position.x == max_position.x
@@ -148,11 +148,10 @@ impl Board {
   /// Returns `true` if tile at given `position` can be captured by playing a
   /// piece of `team`.
   fn is_position_capturable(&self, position: Position, team: Team) -> bool {
-    match self.tiles[(position.x, position.y)] {
-      Tile::Occupied(t) if t != team => true,
-      Tile::Empty(_) => true,
-      _ => false,
-    }
+    matches!(
+      self.tiles[(position.x, position.y)],
+      Tile::Empty(t) | Tile::Occupied(t) if t != team
+    )
   }
 
   /// Returns a set of unique capturable positions adjacent to given `piece`.
@@ -162,9 +161,55 @@ impl Board {
   ) -> HashSet<Position> {
     piece
       .occupied_positions_iter()
-      .flat_map(|p| p.diagonal_adjacent_positions_iter(self.max_position()))
+      .flat_map(|p| p.diagonal_adjacent_positions_iter(self.size()))
       .filter(|p| self.is_position_capturable(*p, piece.team()))
       .collect()
+  }
+
+  /// Finds and returns a set of tiles in the same group with tile with
+  /// `initial_position`.
+  fn find_tile_set(
+    &self,
+    initial_position: Position,
+    team: Team,
+  ) -> HashSet<Position> {
+    fn flood_fill_into_set(
+      board: &Board,
+      position: Position,
+      team: Team,
+      set: &mut HashSet<Position>,
+    ) {
+      if set.contains(&position) {
+        return;
+      }
+      set.insert(position);
+      position
+        .diagonal_adjacent_positions_iter(board.size())
+        .filter(|p| board.is_position_capturable(*p, team))
+        .for_each(|p| flood_fill_into_set(board, p, team, set));
+    }
+
+    let mut set = HashSet::new();
+    flood_fill_into_set(self, initial_position, team, &mut set);
+    set
+  }
+
+  /// Returns sets of capturable tiles' positions.
+  fn find_tile_sets(&self, piece: &Piece<Placed>) -> Vec<HashSet<Position>> {
+    let mut groups: Vec<HashSet<Position>> = Vec::new();
+    let initial_tiles_positions: HashSet<Position> = piece
+      .occupied_positions_iter()
+      .flat_map(|p| p.diagonal_adjacent_positions_iter(self.size()))
+      .filter(|p| self.is_position_capturable(*p, piece.team()))
+      .inspect(|p| println!("{p}"))
+      .collect::<HashSet<_>>();
+    for p in initial_tiles_positions {
+      if !groups.iter().any(|set| set.contains(&p)) {
+        let set = self.find_tile_set(p, piece.team());
+        groups.push(set);
+      }
+    }
+    groups
   }
 }
 
@@ -203,10 +248,10 @@ mod tests {
   #[test]
   fn test_max_position() {
     let board = Board::with_size(10);
-    assert_eq!(board.max_position(), (9, 9).into());
+    assert_eq!(board.size(), (10, 10).into());
 
     let board = Board::with_size(5);
-    assert_eq!(board.max_position(), (4, 4).into());
+    assert_eq!(board.size(), (5, 5).into());
   }
 
   #[test]
@@ -391,5 +436,20 @@ mod tests {
       .all(|t| matches!(t, Tile::Empty(Team::None))));
 
     Ok(())
+  }
+
+  #[test]
+  fn test_find_tile_sets() {
+    let mut board = Board::default();
+    let piece = Piece::new_inn(Team::White);
+    board.place_piece(piece.clone(), (8, 8).into());
+    let piece = piece.placed_at((8, 8).into());
+
+    let tile_sets = board.find_tile_sets(&piece);
+    assert_eq!(tile_sets.len(), 2);
+    assert_eq!(
+      tile_sets.iter().map(HashSet::len).collect::<Vec<_>>(), //
+      &[96, 1]
+    );
   }
 }
