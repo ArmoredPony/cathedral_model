@@ -60,5 +60,8 @@ However, here is an ambiguous situation:
 </pre>
 Two tiles contact walls, yet `b` should not be capturable.
 The fix: merge adjacent wall contacting tiles into a single contact somehow.
-Maybe in set of such tiles count pairs of tiles, that have Manhattan distance
-of 1.
+
+  - ~~In set of such tiles count pairs of tiles, that have Manhattan distance
+    of 1.~~ Doesn't work with continuous groups of occupied tiles (> 2)
+
+  - Use good old flood fill to find groups of tiles contacting walls
